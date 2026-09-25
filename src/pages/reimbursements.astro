@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ReimbursementsView } from '../components/views/ReimbursementsView';
+---
+
+<BaseLayout title="Reimbursement Claims — WeGrow HR Portal">
+  <ReimbursementsView client:only="react" />
+</BaseLayout>

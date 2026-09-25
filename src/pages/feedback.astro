@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { FeedbackView } from '../components/views/FeedbackView';
+---
+
+<BaseLayout title="Confidential Open Feedback — WeGrow HR Portal">
+  <FeedbackView client:only="react" />
+</BaseLayout>

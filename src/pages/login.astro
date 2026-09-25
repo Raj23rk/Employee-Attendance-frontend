@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { LoginView } from '../components/views/LoginView';
+---
+
+<BaseLayout title="Sign In — WeGrow HR & Payroll Console">
+  <LoginView client:only="react" />
+</BaseLayout>

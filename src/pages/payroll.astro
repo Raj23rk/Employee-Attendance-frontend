@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { PayrollView } from '../components/views/PayrollView';
+---
+
+<BaseLayout title="Payroll & Compensation — WeGrow HR Portal">
+  <PayrollView client:only="react" />
+</BaseLayout>
