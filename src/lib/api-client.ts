@@ -27,14 +27,26 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling & token refresh
+// Response interceptor for error handling & session expiration
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
-        // Clear invalid auth data
-        // If not already on login page, can handle redirection or refresh
+        // Clear invalid auth data from localStorage and cookies
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("wg_user");
+        localStorage.removeItem("wg_token");
+        sessionStorage.removeItem("wg_greeting_played");
+        sessionStorage.removeItem("justLoggedIn");
+        document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+
+        // If not already on login page, redirect cleanly
+        const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
+        if (currentPath !== "/login") {
+          window.location.replace("/login");
+        }
       }
     }
     return Promise.reject(error);

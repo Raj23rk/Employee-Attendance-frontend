@@ -97,6 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem("refreshToken", refreshToken);
           }
           localStorage.setItem("wg_user", JSON.stringify(formattedUser));
+          document.cookie = `wg_token=${encodeURIComponent(token)}; path=/; max-age=86400; SameSite=Lax`;
+          sessionStorage.removeItem("wg_greeting_played");
         }
         setUser(formattedUser);
         setIsLoading(false);
@@ -117,6 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("access_token", mockToken);
           localStorage.setItem("wg_token", mockToken);
           localStorage.setItem("wg_user", JSON.stringify(userData));
+          document.cookie = `wg_token=${encodeURIComponent(mockToken)}; path=/; max-age=86400; SameSite=Lax`;
+          sessionStorage.removeItem("wg_greeting_played");
         }
         setUser(userData);
         setIsLoading(false);
@@ -133,14 +137,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: false, error: "Invalid credentials (Try demo password: Password@123)" };
   }, []);
 
-  const logout = useCallback(() => {
-    authService.logout();
-    setUser(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("wg_token");
-      localStorage.removeItem("wg_user");
-      window.location.href = "/login";
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Ignore
+    } finally {
+      setUser(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("wg_token");
+        localStorage.removeItem("wg_user");
+        localStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("wg_greeting_played");
+        sessionStorage.removeItem("justLoggedIn");
+        document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+        window.location.replace("/login");
+      }
     }
   }, []);
 

@@ -15,8 +15,11 @@ function LoginForm() {
 
   // If already logged in, redirect to dashboard
   useEffect(() => {
-    if (isAuthenticated && typeof window !== "undefined") {
-      window.location.href = "/dashboard";
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
+      if (token && isAuthenticated) {
+        window.location.replace("/dashboard");
+      }
     }
   }, [isAuthenticated]);
 
@@ -36,8 +39,8 @@ function LoginForm() {
 
     if (result.success) {
       if (typeof window !== "undefined") {
-        sessionStorage.setItem("justLoggedIn", "true");
-        window.location.href = "/dashboard";
+        sessionStorage.removeItem("wg_greeting_played");
+        window.location.replace("/dashboard");
       }
     } else {
       setError(result.error || "Invalid credentials. Please try again.");

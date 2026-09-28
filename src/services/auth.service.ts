@@ -76,6 +76,9 @@ export const authService = {
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("wg_user");
         localStorage.removeItem("wg_token");
+        sessionStorage.removeItem("wg_greeting_played");
+        sessionStorage.removeItem("justLoggedIn");
+        document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
       }
     }
   },

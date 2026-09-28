@@ -111,6 +111,8 @@ function DashboardContent() {
   }, []);
 
   useEffect(() => {
+    const token = typeof window !== "undefined" ? (localStorage.getItem("access_token") || localStorage.getItem("wg_token")) : null;
+    if (!token) return;
     fetchDashboardData();
   }, [fetchDashboardData]);
 
@@ -195,8 +197,12 @@ function DashboardContent() {
   const campusLocation = user?.department ? `${user.department} Campus` : "Sivakasi Campus";
 
   // Mascot voice speech
-  const speakScreenGreeting = useCallback(() => {
+  const speakScreenGreeting = useCallback((force = false) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    if (!force && sessionStorage.getItem("wg_greeting_played") === "true") {
+      return;
+    }
 
     const screenSentence = `Hi ${firstName}, ${greeting}`;
 
@@ -251,11 +257,20 @@ function DashboardContent() {
   useEffect(() => {
     if (!user?.name) return;
 
+    // Only play automatic greeting once per session
+    if (typeof window !== "undefined" && sessionStorage.getItem("wg_greeting_played") === "true") {
+      return;
+    }
+
     let hasRun = false;
     const triggerSpeech = () => {
       if (!hasRun) {
+        if (typeof window !== "undefined") {
+          if (sessionStorage.getItem("wg_greeting_played") === "true") return;
+          sessionStorage.setItem("wg_greeting_played", "true");
+        }
         hasRun = true;
-        speakScreenGreeting();
+        speakScreenGreeting(true);
       }
     };
 
@@ -293,7 +308,7 @@ function DashboardContent() {
           {/* Left: Mascot & Dynamic Greeting */}
           <div className="flex items-center gap-4 sm:gap-5">
             <div
-              onClick={() => speakScreenGreeting()}
+              onClick={() => speakScreenGreeting(true)}
               className="relative flex-shrink-0 flex items-center justify-center cursor-pointer group"
               title="Click to hear mascot speech"
             >
