@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/helpers";
 import { expensesService } from "@/services/expenses.service";
+import { useToast } from "@/context/ToastContext";
 
 function ExpensesContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const role = user?.role || "employee";
   const isAdminOrHR = role === "admin" || role === "hr_manager" || role === "ceo";
@@ -80,7 +82,7 @@ function ExpensesContent() {
     setIsSubmitting(true);
     try {
       await expensesService.recordDailyExpense(dailyForm);
-      alert("Office bill recorded successfully!");
+      toast.success("Office bill recorded successfully!");
       setShowRecordModal(false);
       setDailyForm({
         title: "",
@@ -93,7 +95,7 @@ function ExpensesContent() {
       });
       await fetchExpenses();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to record office expense.");
+      toast.error(err?.response?.data?.message || "Failed to record office expense.");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +106,7 @@ function ExpensesContent() {
     setIsSubmitting(true);
     try {
       await expensesService.submitReimbursement(claimForm);
-      alert("Reimbursement claim submitted successfully!");
+      toast.success("Reimbursement claim submitted successfully!");
       setShowClaimModal(false);
       setClaimForm({
         category: "Travel",
@@ -115,7 +117,7 @@ function ExpensesContent() {
       });
       await fetchExpenses();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit reimbursement claim.");
+      toast.error(err?.response?.data?.message || "Failed to submit reimbursement claim.");
     } finally {
       setIsSubmitting(false);
     }
@@ -127,10 +129,10 @@ function ExpensesContent() {
         status,
         remarks: status === "APPROVED" ? "Approved for next payroll cycle" : "Rejected",
       });
-      alert(`Claim marked as ${status.toLowerCase()}.`);
+      toast.success(`Claim marked as ${status.toLowerCase()}.`);
       await fetchExpenses();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to review claim.");
+      toast.error(err?.response?.data?.message || "Failed to review claim.");
     }
   };
 
@@ -138,9 +140,10 @@ function ExpensesContent() {
     if (!confirm("Are you sure you want to delete this bill record?")) return;
     try {
       await expensesService.deleteDailyExpense(id);
+      toast.info("Expense record deleted.");
       await fetchExpenses();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete expense.");
+      toast.error(err?.response?.data?.message || "Failed to delete expense.");
     }
   };
 

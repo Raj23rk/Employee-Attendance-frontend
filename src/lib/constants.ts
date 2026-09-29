@@ -32,6 +32,15 @@ export const colors = {
 
 export type UserRole = "admin" | "ceo" | "hr_manager" | "manager" | "employee" | "accountant";
 
+export interface BankDetails {
+  accountHolderName: string;
+  accountNumber: string;
+  bankName: string;
+  ifscCode: string;
+  branchName?: string;
+  upiId?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -45,7 +54,88 @@ export interface User {
   phone?: string;
   personalEmail?: string;
   address?: string;
+  dateOfJoining?: string;
+  branch?: string;
+  isActive?: boolean;
+  bankDetails?: BankDetails;
+  todayAttendance?: {
+    isCheckedIn: boolean;
+    checkInTime?: string;
+    checkOutTime?: string;
+    status?: "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY" | "ON_LEAVE";
+    location?: {
+      latitude?: number;
+      longitude?: number;
+      branchName?: string;
+      address?: string;
+    };
+  };
+  monthlyStats?: {
+    lateCount: number; // Max 3 allowed, 4th triggers half-day deduction
+    permissionHoursUsed: number; // Max 2 hours / month
+    casualLeavesUsed: number; // 1 CL per month standard
+    medicalLeavesUsed: number;
+    lopDays: number;
+  };
 }
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  city: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+}
+
+export const DEFAULT_BRANCHES: Branch[] = [
+  {
+    id: "branch-1",
+    name: "Chennai Main Campus",
+    code: "CHN-01",
+    city: "Chennai",
+    address: "Anna Salai, Guindy Tech Zone, Chennai, Tamil Nadu - 600032",
+    latitude: 13.0102,
+    longitude: 80.2158,
+    radiusMeters: 500,
+  },
+  {
+    id: "branch-2",
+    name: "Bangalore Tech Hub",
+    code: "BLR-02",
+    city: "Bangalore",
+    address: "Outer Ring Road, Bellandur Tech Hub, Bengaluru, Karnataka - 560103",
+    latitude: 12.9279,
+    longitude: 77.6836,
+    radiusMeters: 500,
+  },
+  {
+    id: "branch-3",
+    name: "Hyderabad Branch",
+    code: "HYD-03",
+    city: "Hyderabad",
+    address: "HITEC City, Madhapur, Hyderabad, Telangana - 500081",
+    latitude: 17.4483,
+    longitude: 78.3748,
+    radiusMeters: 500,
+  },
+];
+
+/* ── Company Attendance & Shift Policy Rules ── */
+export const ATTENDANCE_POLICY_CONFIG = {
+  standardCheckIn: "09:40 AM",
+  graceCheckIn: "09:45 AM",
+  standardCheckOut: "07:00 PM",
+  maxLateAllowedPerMonth: 3,
+  lateDeductionRule: "3 times late check-in allowed (up to 9:45 AM). 4th late check-in will deduct Half-Day salary.",
+  monthlyPermissionHoursMax: 2,
+  permissionDeductionRule: "1 month employee gets 2 hours total permission. Permission exceeding 2 hours triggers Half-Day salary deduction.",
+  casualLeaveMonthlyAllowance: 1,
+  casualLeaveRule: "1 Casual Leave (CL) credited per month. Excess leaves treated as Loss of Pay (LOP).",
+  medicalLeaveRule: "Medical Certificate upload is mandatory for Medical Leave approval, otherwise marked as LOP.",
+};
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Admin",
@@ -61,4 +151,5 @@ export const formatRoleLabel = (role?: string): string => {
   const normalized = role.toLowerCase().replace(/[- ]/g, "_");
   return (ROLE_LABELS as Record<string, string>)[normalized] || role;
 };
+
 

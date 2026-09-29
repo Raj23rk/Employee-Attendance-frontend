@@ -5,8 +5,10 @@ import { LifeBuoy, Plus, MessageSquare, CheckCircle2, Clock, Send, RefreshCw, X 
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { helpdeskService } from "@/services/helpdesk.service";
+import { useToast } from "@/context/ToastContext";
 
 function HelpdeskContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const [tickets, setTickets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,12 +45,12 @@ function HelpdeskContent() {
     setIsSubmitting(true);
     try {
       await helpdeskService.createTicket(form);
-      alert("Support ticket raised successfully!");
+      toast.success("Support ticket raised successfully!");
       setShowNew(false);
       setForm({ title: "", category: "IT", description: "", priority: "MEDIUM" });
       await fetchTickets();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to raise support ticket.");
+      toast.error(err?.response?.data?.message || "Failed to raise support ticket.");
     } finally {
       setIsSubmitting(false);
     }

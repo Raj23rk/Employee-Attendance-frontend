@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/helpers";
 import { payrollService } from "@/services/payroll.service";
+import { useToast } from "@/context/ToastContext";
 
 function PayrollContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const role = user?.role || "employee";
   const isAdminOrHR = role === "admin" || role === "hr_manager" || role === "ceo";
@@ -78,11 +80,11 @@ function PayrollContent() {
     setIsSubmitting(true);
     try {
       await payrollService.generatePayslip(generateForm);
-      alert("Payslip generated successfully!");
+      toast.success("Payslip generated successfully!");
       setShowGenerateModal(false);
       await fetchPayrollData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to generate payslip.");
+      toast.error(err?.response?.data?.message || "Failed to generate payslip.");
     } finally {
       setIsSubmitting(false);
     }

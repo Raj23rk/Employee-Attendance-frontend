@@ -38,7 +38,7 @@ interface NavItem {
 const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   admin: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Employees & Roster", href: "/employees", icon: Users, badge: "156" },
+    { label: "Employee Details", href: "/employees", icon: Users, badge: "3 Branches" },
     { label: "Attendance & Bio", href: "/attendance", icon: CalendarCheck },
     { label: "Payroll & Salary", href: "/payroll", icon: Wallet },
     { label: "Daily Office Bills", href: "/expenses", icon: Receipt },
@@ -50,12 +50,9 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   ceo: [
     { label: "Executive Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Institutional Analytics", href: "/reports", icon: FileBarChart2, badge: "Q3 Review" },
-    { label: "Faculty & Staff Roster", href: "/employees", icon: Users, badge: "156" },
-    { label: "Campus Attendance", href: "/attendance", icon: CalendarCheck },
-    { label: "Executive Approvals", href: "/leave", icon: CalendarDays, badge: "4" },
+    { label: "Employee Details", href: "/employees", icon: Users, badge: "3 Branches" },
     { label: "Financials & Payroll", href: "/payroll", icon: Wallet },
-    { label: "Office Expense Bills", href: "/expenses", icon: Receipt },
+    { label: "Institutional Analytics", href: "/reports", icon: FileBarChart2, badge: "Q3 Review" },
     { label: "Confidential Feedback", href: "/feedback", icon: Shield, badge: "CEO Only" },
     { label: "Tasks & OKRs", href: "/tasks", icon: Target },
     { label: "Strategic Circulars", href: "/announcements", icon: Megaphone },
@@ -64,7 +61,7 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   hr_manager: [
     { label: "HR Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Employee Directory", href: "/employees", icon: Users, badge: "156" },
+    { label: "Employee Details", href: "/employees", icon: Users, badge: "3 Branches" },
     { label: "Daily Master Sheet", href: "/attendance", icon: CalendarCheck },
     { label: "Leave Approvals", href: "/leave", icon: CalendarDays, badge: "6" },
     { label: "Payroll Muster", href: "/payroll", icon: Wallet },

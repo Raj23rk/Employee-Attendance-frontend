@@ -5,8 +5,10 @@ import { Shield, Send, Lock, Eye, CheckCircle2, MessageSquare, AlertTriangle, Sp
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { feedbackService } from "@/services/feedback.service";
+import { useToast } from "@/context/ToastContext";
 
 function FeedbackContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const isCEO = user?.role === "ceo";
 
@@ -56,11 +58,11 @@ function FeedbackContent() {
     setIsSubmitting(true);
     try {
       await feedbackService.submitFeedback(form);
-      alert("Confidential feedback submitted directly to the CEO Executive Office!");
+      toast.success("Confidential feedback submitted directly to the CEO Executive Office!");
       setForm({ title: "", category: "INFRASTRUCTURE", message: "", suggestions: "" });
       await fetchFeedbackData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit feedback.");
+      toast.error(err?.response?.data?.message || "Failed to submit feedback.");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,10 +74,10 @@ function FeedbackContent() {
         status,
         ceoNotes: notes || "Reviewed and addressed by CEO office.",
       });
-      alert("Feedback status updated.");
+      toast.success("Feedback status updated.");
       await fetchFeedbackData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update feedback status.");
+      toast.error(err?.response?.data?.message || "Failed to update feedback status.");
     }
   };
 

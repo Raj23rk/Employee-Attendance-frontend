@@ -5,8 +5,10 @@ import { Target, Plus, CheckCircle2, Clock, AlertCircle, Sparkles, Tag, User, Re
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { tasksService } from "@/services/tasks.service";
+import { useToast } from "@/context/ToastContext";
 
 function TasksContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +53,7 @@ function TasksContent() {
     setIsSubmitting(true);
     try {
       await tasksService.createTask(form);
-      alert("Task created successfully!");
+      toast.success("Task created successfully!");
       setShowModal(false);
       setForm({
         title: "",
@@ -63,7 +65,7 @@ function TasksContent() {
       });
       await fetchTasks();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to create task.");
+      toast.error(err?.response?.data?.message || "Failed to create task.");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,9 +74,10 @@ function TasksContent() {
   const handleMoveStatus = async (id: string, newStatus: string) => {
     try {
       await tasksService.updateTaskStatus(id, { status: newStatus });
+      toast.success("Task status updated!");
       await fetchTasks();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update task status.");
+      toast.error(err?.response?.data?.message || "Failed to update task status.");
     }
   };
 

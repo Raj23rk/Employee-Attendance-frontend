@@ -24,8 +24,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { attendanceService } from "@/services/attendance.service";
 import { CheckInOutWidget } from "@/components/ui/CheckInOutWidget";
+import { useToast } from "@/context/ToastContext";
 
 function AttendanceContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const role = user?.role || "employee";
   const isManager = role === "manager";
@@ -112,7 +114,7 @@ function AttendanceContent() {
     setIsSubmitting(true);
     try {
       await attendanceService.submitCorrection(correctionForm);
-      alert("Attendance regularisation request submitted successfully!");
+      toast.success("Attendance regularisation request submitted successfully!");
       setShowCorrectionModal(false);
       setCorrectionForm({
         targetDate: new Date().toISOString().split("T")[0],
@@ -123,7 +125,7 @@ function AttendanceContent() {
       });
       await fetchAttendanceData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit correction request.");
+      toast.error(err?.response?.data?.message || "Failed to submit correction request.");
     } finally {
       setIsSubmitting(false);
     }
@@ -133,10 +135,10 @@ function AttendanceContent() {
   const handleReviewCorrection = async (id: string, action: "APPROVE" | "REJECT") => {
     try {
       await attendanceService.reviewCorrection(id, { action, remarks: action === "APPROVE" ? "Approved" : "Rejected" });
-      alert(`Correction request marked as ${action.toLowerCase()}.`);
+      toast.success(`Correction request marked as ${action.toLowerCase()}.`);
       await fetchAttendanceData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to review correction.");
+      toast.error(err?.response?.data?.message || "Failed to review correction.");
     }
   };
 
@@ -161,7 +163,7 @@ function AttendanceContent() {
             Attendance &amp; Biometric Records
           </h1>
           <p className="text-xs sm:text-sm text-[#5B6180]">
-            Real-time synchronization with biometric terminals, shift timings, and regularisations.
+            Standard Shift: <strong>09:40 AM – 07:00 PM</strong> • Grace: <strong>09:45 AM</strong> • 3 Late Check-ins Allowed • 2h Monthly Permission
           </p>
         </div>
 

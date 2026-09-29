@@ -1,21 +1,18 @@
 import apiClient from "@/lib/api-client";
-import type { User } from "@/lib/constants";
+import type { User, BankDetails } from "@/lib/constants";
 
 export interface UpdatePersonalProfilePayload {
   phone?: string;
   personalEmail?: string;
   address?: string;
+  dateOfJoining?: string;
+  branch?: string;
   emergencyContact?: {
     name: string;
     phone: string;
     relationship: string;
   };
-  bankDetails?: {
-    accountName: string;
-    accountNumber: string;
-    bankName: string;
-    ifscCode: string;
-  };
+  bankDetails?: BankDetails;
   avatarUrl?: string;
 }
 
@@ -31,6 +28,8 @@ export interface OnboardEmployeePayload {
   managerId?: string;
   phone?: string;
   dateOfJoining?: string;
+  branch?: string;
+  bankDetails?: BankDetails;
 }
 
 export const usersService = {
@@ -55,17 +54,30 @@ export const usersService = {
     return response.data;
   },
 
-  // 3.4 List All Employees (Admin, HR, CEO)
-  async getAllUsers(params?: { search?: string; department?: string; page?: number; limit?: number }) {
+  // 3.4 List All Employees with branch & search filter (Admin, HR, CEO)
+  async getAllUsers(params?: { search?: string; department?: string; branch?: string; page?: number; limit?: number }) {
     const response = await apiClient.get("/users", { params });
     return response.data;
   },
 
-  // 3.5 Onboard Employee (Admin, HR, Manager, CEO)
+  // 3.5 Get Single Employee Full Dossier
+  async getUserById(id: string) {
+    const response = await apiClient.get(`/users/${id}`);
+    return response.data;
+  },
+
+  // 3.6 Onboard Employee (Admin, HR, Manager, CEO)
   async onboardEmployee(payload: OnboardEmployeePayload) {
     const response = await apiClient.post("/users", payload);
+    return response.data;
+  },
+
+  // 3.7 Update Specific Employee Details (HR / Admin)
+  async updateEmployee(id: string, payload: Partial<OnboardEmployeePayload & { isActive: boolean }>) {
+    const response = await apiClient.put(`/users/${id}`, payload);
     return response.data;
   },
 };
 
 export default usersService;
+

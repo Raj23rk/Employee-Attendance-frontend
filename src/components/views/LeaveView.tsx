@@ -19,8 +19,10 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { leavesService } from "@/services/leaves.service";
+import { useToast } from "@/context/ToastContext";
 
 function LeaveContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const role = user?.role || "employee";
   const isManager = role === "manager";
@@ -45,6 +47,8 @@ function LeaveContent() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [reason, setReason] = useState("");
+  const [medicalCertFile, setMedicalCertFile] = useState<string>("");
+  const [medicalCertUrl, setMedicalCertUrl] = useState<string>("");
 
   const fetchLeaveData = useCallback(async () => {
     setIsLoading(true);
@@ -89,6 +93,14 @@ function LeaveContent() {
 
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (leaveType === "SICK" && !medicalCertFile && !medicalCertUrl) {
+      const confirmNoCert = confirm(
+        "Notice: You have not uploaded a Medical Certificate for Sick/Medical Leave. Company policy requires a doctor's certificate, otherwise this leave will be marked as Loss of Pay (LOP). Do you still want to proceed?"
+      );
+      if (!confirmNoCert) return;
+    }
+
     setIsSubmitting(true);
     try {
       await leavesService.applyLeave({
@@ -97,15 +109,19 @@ function LeaveContent() {
         toDate,
         days: calculatedDays,
         reason,
+        medicalCertificateUrl: medicalCertUrl || (medicalCertFile ? `/uploads/${medicalCertFile}` : undefined),
+        medicalCertificateName: medicalCertFile,
       });
-      alert("Leave application submitted successfully!");
+      toast.success("Leave application submitted successfully!");
       setShowModal(false);
       setFromDate("");
       setToDate("");
       setReason("");
+      setMedicalCertFile("");
+      setMedicalCertUrl("");
       await fetchLeaveData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit leave application.");
+      toast.error(err?.response?.data?.message || "Failed to submit leave application.");
     } finally {
       setIsSubmitting(false);
     }
@@ -115,23 +131,24 @@ function LeaveContent() {
     if (!confirm("Are you sure you want to cancel this leave application?")) return;
     try {
       await leavesService.cancelLeave(id);
-      alert("Leave cancelled successfully.");
+      toast.info("Leave cancelled successfully.");
       await fetchLeaveData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to cancel leave.");
+      toast.error(err?.response?.data?.message || "Failed to cancel leave.");
     }
   };
 
-  const handleReviewLeave = async (id: string, action: "APPROVE" | "REJECT") => {
+  const handleReviewLeave = async (id: string, action: "APPROVE" | "REJECT", markAsLop: boolean = false) => {
     try {
       await leavesService.reviewLeave(id, {
         action,
-        comments: action === "APPROVE" ? "Approved by reviewer" : "Rejected by reviewer",
+        comments: action === "APPROVE" ? (markAsLop ? "Approved as Loss of Pay (LOP)" : "Approved by reviewer") : "Rejected by reviewer",
+        markAsLop,
       });
-      alert(`Leave request has been ${action.toLowerCase()}d.`);
+      toast.success(`Leave request has been ${action.toLowerCase()}d.`);
       await fetchLeaveData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to review leave.");
+      toast.error(err?.response?.data?.message || "Failed to review leave.");
     }
   };
 
@@ -150,7 +167,7 @@ function LeaveContent() {
             Leave &amp; Absence Management
           </h1>
           <p className="text-xs sm:text-sm text-[#5B6180]">
-            Automated leave balances, statutory benefits, and multi-tier approval workflows.
+            Casual Leave: <strong>1 Day / Month</strong> • Medical Leave requires doctor certificate upload (otherwise LOP).
           </p>
         </div>
 
@@ -180,20 +197,23 @@ function LeaveContent() {
         <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Casual Leave</span>
           <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
-            {balances?.casual ?? balances?.CASUAL ?? "12"} <span className="text-xs text-slate-400 font-normal">Days</span>
+            1 <span className="text-xs text-slate-400 font-normal">Day / Month</span>
           </p>
+          <span className="text-[10px] text-slate-500">Remaining as Paid/LOP</span>
         </div>
         <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sick / Medical</span>
           <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
             {balances?.sick ?? balances?.SICK ?? "8"} <span className="text-xs text-slate-400 font-normal">Days</span>
           </p>
+          <span className="text-[10px] text-orange-600 font-semibold">Cert Mandatory (Else LOP)</span>
         </div>
         <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Earned / Paid</span>
           <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
             {balances?.earned ?? balances?.EARNED ?? "15"} <span className="text-xs text-slate-400 font-normal">Days</span>
           </p>
+          <span className="text-[10px] text-emerald-600">Annual Allocation</span>
         </div>
         <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -202,6 +222,7 @@ function LeaveContent() {
           <p className="font-heading text-2xl font-bold text-[#EA6118] mt-1">
             {isFemale ? "26 Weeks" : "3 Days"}
           </p>
+          <span className="text-[10px] text-slate-400">Statutory Scheme</span>
         </div>
       </div>
 
@@ -266,6 +287,7 @@ function LeaveContent() {
                   <th className="pb-3 px-3">Duration</th>
                   <th className="pb-3 px-3">Days</th>
                   <th className="pb-3 px-3">Reason</th>
+                  <th className="pb-3 px-3">Medical Proof</th>
                   <th className="pb-3 px-3">Status</th>
                   <th className="pb-3 px-3">Action</th>
                 </tr>
@@ -277,6 +299,21 @@ function LeaveContent() {
                     <td className="py-3 px-3">{row.fromDate || row.from} → {row.toDate || row.to}</td>
                     <td className="py-3 px-3 font-semibold">{row.days || 1} day(s)</td>
                     <td className="py-3 px-3 text-slate-500 max-w-xs truncate">{row.reason}</td>
+                    <td className="py-3 px-3">
+                      {row.leaveType === "SICK" || row.leaveType === "Sick" ? (
+                        row.medicalCertificateUrl || row.medicalCertificateName ? (
+                          <span className="rounded bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-bold">
+                            Attached
+                          </span>
+                        ) : (
+                          <span className="rounded bg-red-50 text-red-700 px-2 py-0.5 text-[10px] font-bold">
+                            Missing (LOP)
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-400 text-[10px]">--</span>
+                      )}
+                    </td>
                     <td className="py-3 px-3">
                       <span className={`inline-block rounded-lg px-2.5 py-0.5 text-[10px] font-bold ${
                         row.status === "APPROVED" || row.status === "Approved"
@@ -324,6 +361,11 @@ function LeaveContent() {
                       <span className="rounded bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-bold">
                         {req.leaveType || req.type}
                       </span>
+                      {req.leaveType === "SICK" && !req.medicalCertificateUrl && (
+                        <span className="rounded bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold">
+                          No Medical Cert (Mark as LOP)
+                        </span>
+                      )}
                     </div>
                     <p className="text-slate-500 mt-1">
                       Dates: <strong className="text-slate-700">{req.fromDate || req.from} to {req.toDate || req.to}</strong> ({req.days} days)
@@ -332,14 +374,20 @@ function LeaveContent() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => handleReviewLeave(req._id || req.id, "APPROVE")}
-                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 text-xs transition-colors shadow-sm"
+                      onClick={() => handleReviewLeave(req._id || req.id, "APPROVE", false)}
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
                     >
-                      Approve
+                      Approve (Paid)
+                    </button>
+                    <button
+                      onClick={() => handleReviewLeave(req._id || req.id, "APPROVE", true)}
+                      className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
+                    >
+                      Approve (LOP)
                     </button>
                     <button
                       onClick={() => handleReviewLeave(req._id || req.id, "REJECT")}
-                      className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 text-xs transition-colors shadow-sm"
+                      className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
                     >
                       Reject
                     </button>
@@ -380,9 +428,14 @@ function LeaveContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-heading text-lg font-bold text-[#12173A]">
-                Apply for Leave
-              </h3>
+              <div>
+                <h3 className="font-heading text-lg font-bold text-[#12173A]">
+                  Apply for Leave
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Casual Leave: 1 Day/Month quota • Medical Leave requires certificate
+                </p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -397,16 +450,41 @@ function LeaveContent() {
                 <select
                   value={leaveType}
                   onChange={(e) => setLeaveType(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white font-semibold"
                 >
-                  <option value="CASUAL">Casual Leave (CL)</option>
-                  <option value="SICK">Sick / Medical Leave (SL)</option>
+                  <option value="CASUAL">Casual Leave (1 Day / Month Quota)</option>
+                  <option value="SICK">Sick / Medical Leave (Medical Cert Required)</option>
                   <option value="EARNED">Earned / Annual Leave (EL)</option>
                   <option value="MATERNITY">Maternity Leave (26 Weeks Statutory)</option>
                   <option value="PATERNITY">Paternity Leave (3 Days)</option>
-                  <option value="UNPAID">Leave Without Pay (LWP)</option>
+                  <option value="UNPAID">Leave Without Pay (LWP / LOP)</option>
                 </select>
               </div>
+
+              {/* Notice for Medical Leave */}
+              {leaveType === "SICK" && (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 space-y-2 text-amber-900">
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <span>Medical Certificate Required</span>
+                  </div>
+                  <p className="text-[11px]">
+                    Doctor prescription or hospital discharge summary must be uploaded. Unverified medical leaves will be marked as Loss of Pay (LOP).
+                  </p>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">
+                      Upload Certificate / Prescription (File Name or URL)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. apollo_prescription_dr_ram.pdf or document link"
+                      value={medicalCertFile}
+                      onChange={(e) => setMedicalCertFile(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -441,7 +519,7 @@ function LeaveContent() {
                 <textarea
                   rows={3}
                   required
-                  placeholder="Provide details of the leave reason..."
+                  placeholder="Provide detailed explanation of the leave reason..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"
@@ -484,3 +562,4 @@ export function LeaveView() {
   );
 }
 export default LeaveView;
+

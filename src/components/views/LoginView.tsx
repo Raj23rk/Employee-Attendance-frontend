@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ToastProvider, useToast } from "@/context/ToastContext";
 import { Logo } from "@/components/ui/Logo";
 import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 
 function LoginForm() {
+  const { toast } = useToast();
   const { login, isAuthenticated } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
@@ -188,7 +190,7 @@ function LoginForm() {
               </label>
               <a 
                 href="#" 
-                onClick={(e) => { e.preventDefault(); alert("Please contact your HR administrator or IT helpdesk to reset your password."); }}
+                onClick={(e) => { e.preventDefault(); toast.info("Please contact your HR administrator or IT helpdesk to reset your password."); }}
                 className="text-xs font-semibold text-[#EA6118] hover:text-[#D9520A] transition-colors"
               >
                 Forgot password?
@@ -227,9 +229,11 @@ function LoginForm() {
 
 export function LoginView() {
   return (
-    <AuthProvider>
-      <LoginForm />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <LoginForm />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 export default LoginView;

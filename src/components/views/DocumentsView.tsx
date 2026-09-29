@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { documentsService } from "@/services/documents.service";
 import { assetsService } from "@/services/assets.service";
+import { useToast } from "@/context/ToastContext";
 
 function DocumentsContent() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<"docs" | "assets">("docs");
   const [documents, setDocuments] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
@@ -60,12 +62,12 @@ function DocumentsContent() {
     setIsSubmitting(true);
     try {
       await documentsService.uploadDocument(uploadForm);
-      alert("Document metadata uploaded successfully!");
+      toast.success("Document metadata uploaded successfully!");
       setShowUploadModal(false);
       setUploadForm({ title: "", category: "Identity", fileUrl: "https://example.com/document.pdf" });
       await fetchDocsAndAssets();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to upload document.");
+      toast.error(err?.response?.data?.message || "Failed to upload document.");
     } finally {
       setIsSubmitting(false);
     }
@@ -76,11 +78,11 @@ function DocumentsContent() {
     setIsSubmitting(true);
     try {
       await assetsService.requestService(selectedAssetId, { issue: serviceIssue });
-      alert("Hardware service request submitted!");
+      toast.success("Hardware service request submitted!");
       setShowServiceModal(false);
       setServiceIssue("");
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit service request.");
+      toast.error(err?.response?.data?.message || "Failed to submit service request.");
     } finally {
       setIsSubmitting(false);
     }

@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/helpers";
 import { expensesService } from "@/services/expenses.service";
+import { useToast } from "@/context/ToastContext";
 
 function ReimbursementsContent() {
+  const { toast } = useToast();
   const [claims, setClaims] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -43,7 +45,7 @@ function ReimbursementsContent() {
     setIsSubmitting(true);
     try {
       await expensesService.submitReimbursement(form);
-      alert("Reimbursement claim submitted successfully!");
+      toast.success("Reimbursement claim submitted successfully!");
       setShowModal(false);
       setForm({
         category: "Travel",
@@ -54,7 +56,7 @@ function ReimbursementsContent() {
       });
       await fetchClaims();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit claim.");
+      toast.error(err?.response?.data?.message || "Failed to submit claim.");
     } finally {
       setIsSubmitting(false);
     }

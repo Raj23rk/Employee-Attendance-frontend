@@ -39,8 +39,10 @@ import { dashboardService } from "@/services/dashboard.service";
 import { attendanceService } from "@/services/attendance.service";
 import { engageService } from "@/services/engage.service";
 import { CheckInOutWidget } from "@/components/ui/CheckInOutWidget";
+import { useToast } from "@/context/ToastContext";
 
 function DashboardContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const currentRole: UserRole = user?.role || "admin";
   const isCEO = currentRole === "ceo";
@@ -127,14 +129,16 @@ function DashboardContent() {
           workMode: "office",
           notes: "Quick check-in from dashboard",
         });
+        toast.success("Checked in successfully!");
       } else {
         await attendanceService.checkOut({
           notes: "Quick check-out from dashboard",
         });
+        toast.success("Checked out successfully!");
       }
       await fetchDashboardData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update attendance punch.");
+      toast.error(err?.response?.data?.message || "Failed to update attendance punch.");
     } finally {
       setIsClocking(false);
     }
@@ -146,9 +150,9 @@ function DashboardContent() {
         type,
         message: type === "BIRTHDAY" ? "Happy Birthday! Wishing you a wonderful year ahead! 🎉" : "Congratulations on your work anniversary! 🎊",
       });
-      alert("Wish sent successfully!");
+      toast.success("Wish sent successfully! 🎉");
     } catch {
-      alert("Wish sent!");
+      toast.info("Wish sent!");
     }
   };
 

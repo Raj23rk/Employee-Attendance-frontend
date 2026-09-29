@@ -6,8 +6,10 @@ import { Avatar } from "@/components/ui/Avatar";
 import { User, Mail, Building, Shield, Phone, MapPin, Calendar, Lock, KeyRound, RefreshCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { usersService } from "@/services/users.service";
+import { useToast } from "@/context/ToastContext";
 
 function ProfileContent() {
+  const { toast } = useToast();
   const { user, refreshUser } = useAuth();
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,11 +56,11 @@ function ProfileContent() {
         personalEmail,
         address,
       });
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully!");
       await refreshUser();
       await fetchProfile();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update profile.");
+      toast.error(err?.response?.data?.message || "Failed to update profile.");
     } finally {
       setIsSaving(false);
     }
@@ -69,11 +71,11 @@ function ProfileContent() {
     setIsChangingPass(true);
     try {
       await usersService.changePassword(oldPassword, newPassword);
-      alert("Password changed successfully!");
+      toast.success("Password changed successfully!");
       setOldPassword("");
       setNewPassword("");
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to change password.");
+      toast.error(err?.response?.data?.message || "Failed to change password.");
     } finally {
       setIsChangingPass(false);
     }

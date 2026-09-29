@@ -5,8 +5,10 @@ import { Megaphone, Plus, Bell, Calendar, Sparkles, Heart, RefreshCw, X, Send, M
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { engageService } from "@/services/engage.service";
+import { useToast } from "@/context/ToastContext";
 
 function AnnouncementsContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const role = user?.role || "employee";
   const canPost = role === "hr_manager" || role === "admin" || role === "ceo";
@@ -68,12 +70,12 @@ function AnnouncementsContent() {
     setIsSubmitting(true);
     try {
       await engageService.createAnnouncement(postForm);
-      alert("Announcement posted successfully!");
+      toast.success("Announcement posted successfully!");
       setShowPostModal(false);
       setPostForm({ title: "", category: "Campus Notice", body: "" });
       await fetchEngageData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to post announcement.");
+      toast.error(err?.response?.data?.message || "Failed to post announcement.");
     } finally {
       setIsSubmitting(false);
     }
@@ -91,10 +93,10 @@ function AnnouncementsContent() {
   const handleRsvp = async (id: string) => {
     try {
       await engageService.toggleRsvp(id);
-      alert("RSVP updated!");
+      toast.success("RSVP updated!");
       await fetchEngageData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to RSVP.");
+      toast.error(err?.response?.data?.message || "Failed to RSVP.");
     }
   };
 
@@ -103,7 +105,7 @@ function AnnouncementsContent() {
     setIsSubmitting(true);
     try {
       await engageService.submitTravelRequest(travelForm);
-      alert("Travel booking request submitted successfully!");
+      toast.success("Travel booking request submitted successfully!");
       setShowTravelModal(false);
       setTravelForm({
         purpose: "",
@@ -113,7 +115,7 @@ function AnnouncementsContent() {
         estimatedCost: 15000,
       });
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit travel request.");
+      toast.error(err?.response?.data?.message || "Failed to submit travel request.");
     } finally {
       setIsSubmitting(false);
     }

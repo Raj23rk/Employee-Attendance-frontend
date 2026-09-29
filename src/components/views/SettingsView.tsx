@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { attendanceService } from "@/services/attendance.service";
 import { notificationsService } from "@/services/notifications.service";
+import { useToast } from "@/context/ToastContext";
 
 function SettingsContent() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"policies" | "templates" | "biometric">("policies");
   const [policies, setPolicies] = useState<any>({
     workStartTime: "09:00",
@@ -64,10 +66,10 @@ function SettingsContent() {
     setIsSaving(true);
     try {
       await attendanceService.updatePolicies(policies);
-      alert("Shift and attendance policies saved successfully!");
+      toast.success("Shift and attendance policies saved successfully!");
       await fetchSettings();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update policies.");
+      toast.error(err?.response?.data?.message || "Failed to update policies.");
     } finally {
       setIsSaving(false);
     }
@@ -78,11 +80,11 @@ function SettingsContent() {
     setIsSaving(true);
     try {
       await notificationsService.createTemplate(templateForm);
-      alert("Notification template created!");
+      toast.success("Notification template created!");
       setShowTemplateModal(false);
       await fetchSettings();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to create template.");
+      toast.error(err?.response?.data?.message || "Failed to create template.");
     } finally {
       setIsSaving(false);
     }
@@ -100,9 +102,9 @@ function SettingsContent() {
           },
         ],
       });
-      alert("Biometric terminal logs synced successfully!");
+      toast.success("Biometric terminal logs synced successfully!");
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Biometric test sync completed.");
+      toast.info(err?.response?.data?.message || "Biometric test sync completed.");
     }
   };
 

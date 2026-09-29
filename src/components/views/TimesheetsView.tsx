@@ -5,8 +5,10 @@ import { Clock, Send, Calendar, CheckCircle2, FileText, ChevronLeft, ChevronRigh
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { timesheetsService } from "@/services/timesheets.service";
+import { useToast } from "@/context/ToastContext";
 
 function TimesheetsContent() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const role = user?.role || "employee";
   const isManager = role === "manager" || role === "hr_manager" || role === "ceo";
@@ -80,10 +82,10 @@ function TimesheetsContent() {
         weekStartDate,
         entries,
       });
-      alert("Weekly timesheet submitted successfully!");
+      toast.success("Weekly timesheet submitted successfully!");
       await fetchTimesheetData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to submit timesheet.");
+      toast.error(err?.response?.data?.message || "Failed to submit timesheet.");
     } finally {
       setIsSubmitting(false);
     }
@@ -95,10 +97,10 @@ function TimesheetsContent() {
         action,
         remarks: action === "APPROVE" ? "Approved logged project hours." : "Rejected.",
       });
-      alert(`Timesheet ${action.toLowerCase()}d.`);
+      toast.success(`Timesheet ${action.toLowerCase()}d.`);
       await fetchTimesheetData();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to review timesheet.");
+      toast.error(err?.response?.data?.message || "Failed to review timesheet.");
     }
   };
 

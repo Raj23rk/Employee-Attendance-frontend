@@ -41,6 +41,36 @@ export const dashboardService = {
     const response = await apiClient.get("/dashboard/hours-logged-chart");
     return response.data;
   },
+
+  // 6.7 HR/CEO Employee Details Dashboard with branch filter, DOJ, checkin, checkout
+  async getHrCeoEmployees(params?: { branch?: string; search?: string; page?: number; limit?: number }) {
+    const response = await apiClient.get("/dashboard/hr-ceo/employees", { params });
+    return response.data;
+  },
+
+  // 6.8 HR/CEO Full details popup (Bank account info, user details, checkin, active state)
+  async getEmployeePopupDetails(employeeId: string) {
+    const response = await apiClient.get(`/dashboard/hr-ceo/employees/${employeeId}/popup`);
+    return response.data;
+  },
+
+  // 6.9 HR/CEO Download individual employee detailed report URL & method
+  getEmployeeReportDownloadUrl(employeeId: string, month?: number, year?: number) {
+    let url = `${apiClient.defaults.baseURL}/dashboard/hr-ceo/employees/${employeeId}/export-report`;
+    const params = new URLSearchParams();
+    if (month) params.append("month", month.toString());
+    if (year) params.append("year", year.toString());
+    const queryString = params.toString();
+    return queryString ? `${url}?${queryString}` : url;
+  },
+
+  async exportEmployeeReport(employeeId: string, month?: number, year?: number) {
+    const response = await apiClient.get(`/dashboard/hr-ceo/employees/${employeeId}/export-report`, {
+      params: { month, year },
+      responseType: "blob",
+    });
+    return response.data;
+  },
 };
 
 export default dashboardService;
