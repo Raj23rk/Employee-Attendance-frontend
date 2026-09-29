@@ -14,8 +14,22 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     (function() {
       try {
         var token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
+        if (!token) {
+          var match = document.cookie.match(/(?:^|; )wg_token=([^;]*)/);
+          if (match && match[1]) {
+            token = decodeURIComponent(match[1]);
+          }
+        }
+
         if (token) {
-          window.location.replace("/dashboard");
+          var targetPath = '/dashboard';
+          try {
+            var saved = localStorage.getItem("last_visited_path");
+            if (saved && saved !== '/login' && saved !== '/') {
+              targetPath = saved;
+            }
+          } catch (e) {}
+          window.location.replace(targetPath);
         } else {
           window.location.replace("/login");
         }

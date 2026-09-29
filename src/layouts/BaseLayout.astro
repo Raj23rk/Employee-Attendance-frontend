@@ -56,12 +56,26 @@ const {
             var isRootPage = path === '/';
             var token = getAuthToken();
 
+            // Track last visited protected route
+            if (token && !isLoginPage && !isRootPage) {
+              try {
+                localStorage.setItem("last_visited_path", window.location.pathname);
+              } catch (e) {}
+            }
+
             if (!token && !isLoginPage && !isRootPage) {
               // Unauthenticated user attempting to access protected dashboard pages -> redirect immediately to login
               window.location.replace('/login');
-            } else if (token && isLoginPage) {
-              // Authenticated user on login page -> redirect to dashboard
-              window.location.replace('/dashboard');
+            } else if (token && (isLoginPage || isRootPage)) {
+              // Authenticated user on login or root page -> redirect to last visited screen (or /dashboard)
+              var targetPath = '/dashboard';
+              try {
+                var saved = localStorage.getItem("last_visited_path");
+                if (saved && saved !== '/login' && saved !== '/') {
+                  targetPath = saved;
+                }
+              } catch (e) {}
+              window.location.replace(targetPath);
             }
           } catch (e) {
             // Fallback

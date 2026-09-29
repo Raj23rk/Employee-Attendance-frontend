@@ -1,23 +1,30 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { User, UserRole } from "@/lib/constants";
 import { MOCK_USERS } from "@/lib/mock-data";
 import { authService } from "@/services/auth.service";
 import { usersService } from "@/services/users.service";
+import { AuthContext, type AuthContextType } from "./AuthContextDef";
 
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
-  isAuthenticated: boolean;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
+export { AuthContext, type AuthContextType };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Synchronous session restore from localStorage for instant rendering
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("wg_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
+    const storedUser = localStorage.getItem("wg_user");
+    return !!token && !storedUser;
+  });
 
   const refreshUser = useCallback(async () => {
     try {
@@ -40,16 +47,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {
-      // Ignored if offline or unauthorized
+      // Keep existing stored user on transient error or offline
     }
   }, []);
 
-  /* Restore session on mount */
+  /* Restore and verify session in background */
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
     const stored = localStorage.getItem("wg_user");
-    if (stored) {
+
+    if (stored && !user) {
       try {
         setUser(JSON.parse(stored));
       } catch {
@@ -57,7 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const token = localStorage.getItem("access_token");
     if (token) {
       refreshUser().finally(() => setIsLoading(false));
     } else {
@@ -149,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("wg_token");
         localStorage.removeItem("wg_user");
         localStorage.removeItem("refreshToken");
+        localStorage.removeItem("last_visited_path");
         sessionStorage.removeItem("wg_greeting_played");
         sessionStorage.removeItem("justLoggedIn");
         document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
@@ -173,8 +182,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
+export { useAuth } from "./useAuth";
+export default AuthProvider;

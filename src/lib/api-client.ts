@@ -33,19 +33,28 @@ apiClient.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
-        // Clear invalid auth data from localStorage and cookies
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("wg_user");
-        localStorage.removeItem("wg_token");
-        sessionStorage.removeItem("wg_greeting_played");
-        sessionStorage.removeItem("justLoggedIn");
-        document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+        const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token") || "";
+        // If user logged in via mock demo seed, do not kill session on remote 401
+        if (token.startsWith("mock_jwt_token_")) {
+          return Promise.reject(error);
+        }
 
-        // If not already on login page, redirect cleanly
-        const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
-        if (currentPath !== "/login") {
-          window.location.replace("/login");
+        // Only clear credentials if user info endpoint fails with 401
+        const reqUrl = error.config?.url || "";
+        if (reqUrl.includes("/users/me") || reqUrl.includes("/auth/me") || reqUrl.includes("/auth/refresh")) {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("wg_user");
+          localStorage.removeItem("wg_token");
+          localStorage.removeItem("last_visited_path");
+          sessionStorage.removeItem("wg_greeting_played");
+          sessionStorage.removeItem("justLoggedIn");
+          document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+
+          const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
+          if (currentPath !== "/login") {
+            window.location.replace("/login");
+          }
         }
       }
     }

@@ -13,22 +13,30 @@ export function AppShell({ children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Synchronous token verification from localStorage
+  // Synchronous session check from localStorage
   const hasToken =
     typeof window !== "undefined" &&
-    !!(localStorage.getItem("access_token") || localStorage.getItem("wg_token"));
+    !!(localStorage.getItem("access_token") || localStorage.getItem("wg_token") || localStorage.getItem("wg_user"));
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Track active screen
+    if (window.location.pathname && window.location.pathname !== "/login" && window.location.pathname !== "/") {
+      try {
+        localStorage.setItem("last_visited_path", window.location.pathname);
+      } catch {}
+    }
+
     const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-    if (!token || (!isLoading && !isAuthenticated)) {
+    const storedUser = localStorage.getItem("wg_user");
+    if ((!token && !storedUser) || (!isLoading && !isAuthenticated && !storedUser)) {
       window.location.replace("/login");
     }
   }, [isLoading, isAuthenticated]);
 
-  // Block rendering protected children if token is absent or verifying initial session
-  if (!hasToken || (!user && isLoading)) {
+  // Block rendering protected children only if credentials completely missing
+  if (!hasToken) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F4F5F9]">
         <div className="flex flex-col items-center gap-3">

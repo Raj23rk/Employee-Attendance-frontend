@@ -1,27 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from "lucide-react";
+import { ToastContext, type ToastContextType, type ToastItem, type ToastType } from "./ToastContextDef";
 
-export type ToastType = "success" | "error" | "warning" | "info";
-
-export interface ToastItem {
-  id: string;
-  type: ToastType;
-  message: string;
-  title?: string;
-  duration?: number;
-}
-
-interface ToastContextType {
-  toasts: ToastItem[];
-  showToast: (message: string, type?: ToastType, title?: string, duration?: number) => void;
-  removeToast: (id: string) => void;
-  success: (message: string, title?: string) => void;
-  error: (message: string, title?: string) => void;
-  warning: (message: string, title?: string) => void;
-  info: (message: string, title?: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | null>(null);
+export { ToastContext, type ToastContextType, type ToastItem, type ToastType };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -132,39 +113,5 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    // Fallback if rendered outside provider
-    return {
-      showToast: (msg: string, type: ToastType = "info") => {
-        if (typeof window !== "undefined" && (window as any).showToast) {
-          (window as any).showToast(msg, type);
-        }
-      },
-      success: (msg: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) {
-          (window as any).showToast(msg, "success");
-        }
-      },
-      error: (msg: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) {
-          (window as any).showToast(msg, "error");
-        }
-      },
-      warning: (msg: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) {
-          (window as any).showToast(msg, "warning");
-        }
-      },
-      info: (msg: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) {
-          (window as any).showToast(msg, "info");
-        }
-      },
-      removeToast: () => {},
-      toasts: [],
-    };
-  }
-  return ctx;
-}
+export { useToast } from "./useToast";
+export default ToastProvider;

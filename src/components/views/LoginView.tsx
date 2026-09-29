@@ -15,12 +15,20 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // If already logged in, redirect to dashboard
+  // If already logged in, redirect to same screen or dashboard
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-      if (token && isAuthenticated) {
-        window.location.replace("/dashboard");
+      const storedUser = localStorage.getItem("wg_user");
+      if ((token || storedUser) && isAuthenticated) {
+        let target = "/dashboard";
+        try {
+          const saved = localStorage.getItem("last_visited_path");
+          if (saved && saved !== "/login" && saved !== "/") {
+            target = saved;
+          }
+        } catch {}
+        window.location.replace(target);
       }
     }
   }, [isAuthenticated]);
@@ -42,7 +50,14 @@ function LoginForm() {
     if (result.success) {
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("wg_greeting_played");
-        window.location.replace("/dashboard");
+        let target = "/dashboard";
+        try {
+          const saved = localStorage.getItem("last_visited_path");
+          if (saved && saved !== "/login" && saved !== "/") {
+            target = saved;
+          }
+        } catch {}
+        window.location.replace(target);
       }
     } else {
       setError(result.error || "Invalid credentials. Please try again.");
