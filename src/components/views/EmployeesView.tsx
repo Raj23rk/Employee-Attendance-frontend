@@ -59,7 +59,7 @@ function EmployeesContent() {
 
   // Data States
   const [employees, setEmployees] = useState<User[]>([]);
-  const [branches, setBranches] = useState<Branch[]>(DEFAULT_BRANCHES);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeMainTab, setActiveMainTab] = useState<"directory" | "leave_list">("directory");
 
@@ -103,7 +103,7 @@ function EmployeesContent() {
     designation: "HR Associate",
     phone: "",
     dateOfJoining: new Date().toISOString().split("T")[0],
-    branch: "Main Campus / HQ",
+    branch: "",
     bankHolderName: "",
     bankAccountNumber: "",
     bankName: "HDFC Bank",
@@ -117,7 +117,7 @@ function EmployeesContent() {
     try {
       const res = await organizationService.getBranches();
       const data = res?.data || res;
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         const formatted = data.map((b: any, i: number) => ({
           ...b,
           id: b.id || b._id || `branch-${i + 1}`,
@@ -126,9 +126,11 @@ function EmployeesContent() {
           code: b.code || `BR-${i + 1}`,
         }));
         setBranches(formatted);
+      } else {
+        setBranches([]);
       }
     } catch {
-      // Keep default branches
+      setBranches([]);
     }
   }, []);
 
@@ -261,32 +263,37 @@ function EmployeesContent() {
       return;
     }
     const newBranch: Branch = {
-      id: `branch-${branches.length + 1}`,
+      id: `branch-${Date.now()}`,
       name: newBranchData.name,
       code: newBranchData.code || `${newBranchData.city.slice(0, 3).toUpperCase()}-BR`,
       city: newBranchData.city,
       address: newBranchData.address || `${newBranchData.name}, ${newBranchData.city}`,
-      latitude: newBranchData.latitude,
-      longitude: newBranchData.longitude,
-      radiusMeters: newBranchData.radiusMeters,
+      latitude: Number(newBranchData.latitude) || 12.9716,
+      longitude: Number(newBranchData.longitude) || 77.5946,
+      radiusMeters: Number(newBranchData.radiusMeters) || 500,
     };
     try {
       await organizationService.createBranch(newBranch);
-    } catch {
-      // Local fallback
+      toast.success(`Branch "${newBranchData.name}" created successfully!`);
+      setShowAddBranchModal(false);
+      setNewBranchData({
+        name: "",
+        code: "",
+        city: "",
+        address: "",
+        latitude: 12.9716,
+        longitude: 77.5946,
+        radiusMeters: 500,
+      });
+      await fetchBranches();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to create branch.";
+      toast.error(Array.isArray(msg) ? msg.join(", ") : msg);
     }
-    setBranches([...branches, newBranch]);
-    toast.success(`Branch "${newBranch.name}" created successfully!`);
-    setShowAddBranchModal(false);
-    setNewBranchData({
-      name: "",
-      code: "",
-      city: "",
-      address: "",
-      latitude: 12.9716,
-      longitude: 77.5946,
-      radiusMeters: 500,
-    });
   };
 
   // Onboard Employee Handler
@@ -318,43 +325,35 @@ function EmployeesContent() {
 
       await usersService.onboardEmployee(payload);
       toast.success(`Employee ${onboardForm.name} successfully onboarded to ${onboardForm.branch}!`);
-
-      // Add to local state
-      const createdUser: User = {
-        id: `u-${Date.now()}`,
-        name: onboardForm.name,
-        email: onboardForm.email,
-        role: onboardForm.role.toLowerCase() as any,
-        employeeId: onboardForm.employeeId,
-        department: onboardForm.department,
-        designation: onboardForm.designation,
-        gender: onboardForm.gender,
-        phone: onboardForm.phone,
-        dateOfJoining: onboardForm.dateOfJoining,
-        branch: onboardForm.branch,
-        isActive: true,
-        bankDetails: payload.bankDetails,
-        todayAttendance: {
-          isCheckedIn: false,
-          checkInTime: "--:--",
-          checkOutTime: "--:--",
-          status: "PRESENT",
-        },
-        monthlyStats: {
-          lateCount: 0,
-          permissionHoursUsed: 0,
-          casualLeavesUsed: 0,
-          medicalLeavesUsed: 0,
-          lopDays: 0,
-        },
-      };
-      setEmployees([createdUser, ...employees]);
       setShowAddModal(false);
       setOnboardStep(1);
-    } catch {
-      toast.info("Employee added successfully (saved in current session).");
-      setShowAddModal(false);
-      setOnboardStep(1);
+      setOnboardForm({
+        name: "",
+        email: "",
+        password: "",
+        role: "EMPLOYEE",
+        gender: "male",
+        department: "Engineering",
+        designation: "",
+        employeeId: `WG-${Math.floor(1000 + Math.random() * 9000)}`,
+        phone: "",
+        dateOfJoining: new Date().toISOString().split("T")[0],
+        branch: branches[0]?.name || "Main Campus",
+        bankHolderName: "",
+        bankAccountNumber: "",
+        bankName: "HDFC Bank",
+        ifscCode: "HDFC0001234",
+        bankBranchName: "Corporate Branch",
+        upiId: "",
+      });
+      await fetchEmployees();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to onboard employee.";
+      toast.error(Array.isArray(msg) ? msg.join(", ") : msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -645,36 +644,50 @@ Generated on: ${new Date().toLocaleString()}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {branches.map((b, bIdx) => {
-                const branchStaffCount = employees.filter((e) =>
-                  e.branch?.toLowerCase().includes(b.name.toLowerCase()) || e.branch?.toLowerCase().includes(b.city.toLowerCase())
-                ).length;
+            {branches.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {branches.map((b, bIdx) => {
+                  const branchStaffCount = employees.filter((e) =>
+                    e.branch?.toLowerCase().includes(b.name.toLowerCase()) || e.branch?.toLowerCase().includes(b.city.toLowerCase())
+                  ).length;
 
-                return (
-                  <div
-                    key={b.id || `branch-strip-${bIdx}`}
-                    onClick={() => setSelectedBranchFilter(b.name)}
-                    className={`cursor-pointer rounded-2xl p-3.5 transition-all border ${
-                      selectedBranchFilter === b.name
-                        ? "bg-white/20 border-orange-400 ring-2 ring-orange-500"
-                        : "bg-white/10 border-white/10 hover:bg-white/15"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white truncate">{b.name}</span>
-                      <span className="rounded-full bg-orange-500/30 text-orange-300 px-2 py-0.5 text-[10px] font-bold">
-                        {branchStaffCount} Staff
-                      </span>
+                  return (
+                    <div
+                      key={b.id || `branch-strip-${bIdx}`}
+                      onClick={() => setSelectedBranchFilter(b.name)}
+                      className={`cursor-pointer rounded-2xl p-3.5 transition-all border ${
+                        selectedBranchFilter === b.name
+                          ? "bg-white/20 border-orange-400 ring-2 ring-orange-500"
+                          : "bg-white/10 border-white/10 hover:bg-white/15"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white truncate">{b.name}</span>
+                        <span className="rounded-full bg-orange-500/30 text-orange-300 px-2 py-0.5 text-[10px] font-bold">
+                          {branchStaffCount} Staff
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 mt-1 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-orange-400" />
+                        <span>{b.city}</span>
+                      </p>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-1 flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-orange-400" />
-                      <span>{b.city}</span>
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-slate-300">
+                <span>No branches registered yet in the backend database. Click </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAddBranchModal(true)}
+                  className="text-orange-400 font-bold hover:underline"
+                >
+                  + Add Branch
+                </button>
+                <span> to register your first campus or branch.</span>
+              </div>
+            )}
           </div>
 
           {/* Search and Filters Bar */}

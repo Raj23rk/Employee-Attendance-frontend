@@ -19,7 +19,8 @@ import {
   Building,
 } from "lucide-react";
 import { attendanceService, type PunchPayload } from "@/services/attendance.service";
-import { DEFAULT_BRANCHES, ATTENDANCE_POLICY_CONFIG, type Branch } from "@/lib/constants";
+import { organizationService } from "@/services/organization.service";
+import { ATTENDANCE_POLICY_CONFIG, type Branch } from "@/lib/constants";
 import { useToast } from "@/context/ToastContext";
 
 interface CheckInOutWidgetProps {
@@ -43,6 +44,7 @@ export function CheckInOutWidget({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Geolocation & Branch State
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -51,7 +53,26 @@ export function CheckInOutWidget({
     nearestBranch: Branch | null;
   } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<string>("branch-1");
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
+
+  useEffect(() => {
+    organizationService.getBranches().then((res) => {
+      const data = res?.data || res;
+      if (Array.isArray(data) && data.length > 0) {
+        const formatted = data.map((b: any, i: number) => ({
+          ...b,
+          id: b.id || b._id || `branch-${i + 1}`,
+          name: b.name || `Branch ${i + 1}`,
+          city: b.city || "Campus",
+          code: b.code || `BR-${i + 1}`,
+        }));
+        setBranches(formatted);
+        if (formatted[0]?.id) {
+          setSelectedBranch(formatted[0].id);
+        }
+      }
+    }).catch(() => {});
+  }, []);
 
   // Monthly Policy Metrics
   const [monthlyLateCount, setMonthlyLateCount] = useState<number>(2); // Default mock for demo
@@ -92,7 +113,7 @@ export function CheckInOutWidget({
         let matchedBranch: Branch | null = null;
         let minDistance = Infinity;
 
-        DEFAULT_BRANCHES.forEach((b) => {
+        branches.forEach((b) => {
           const dist = calculateDistanceMeters(latitude, longitude, b.latitude, b.longitude);
           if (dist < minDistance) {
             minDistance = dist;
@@ -100,33 +121,33 @@ export function CheckInOutWidget({
           }
         });
 
-        // Nearest or default
-        const activeBranch = matchedBranch || DEFAULT_BRANCHES[0];
+        const activeBranch = matchedBranch || (branches.length > 0 ? branches[0] : null);
         setUserLocation({
           latitude,
           longitude,
           accuracy: Math.round(accuracy),
-          address: `${activeBranch.name} • ${activeBranch.city} (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E)`,
+          address: activeBranch ? `${activeBranch.name} • ${activeBranch.city} (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E)` : `Current Location (${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°)`,
           nearestBranch: activeBranch,
         });
-        setSelectedBranch(activeBranch.id);
+        if (activeBranch) {
+          setSelectedBranch(activeBranch.id);
+        }
         setIsLocating(false);
       },
       () => {
-        // Fallback to default branch when GPS is restricted
-        const defaultBranch = DEFAULT_BRANCHES[0];
+        const activeBranch = branches.length > 0 ? branches[0] : null;
         setUserLocation({
-          latitude: defaultBranch.latitude,
-          longitude: defaultBranch.longitude,
+          latitude: activeBranch?.latitude || 13.0102,
+          longitude: activeBranch?.longitude || 80.2158,
           accuracy: 10,
-          address: `${defaultBranch.name} (${defaultBranch.city})`,
-          nearestBranch: defaultBranch,
+          address: activeBranch ? `${activeBranch.name} (${activeBranch.city})` : "Main Campus",
+          nearestBranch: activeBranch,
         });
         setIsLocating(false);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, []);
+  }, [branches]);
 
   useEffect(() => {
     detectLocation();
@@ -245,16 +266,16 @@ export function CheckInOutWidget({
     }
 
     try {
-      const activeBranchObj = DEFAULT_BRANCHES.find((b) => b.id === selectedBranch) || DEFAULT_BRANCHES[0];
+      const activeBranchObj = branches.find((b) => b.id === selectedBranch) || (branches.length > 0 ? branches[0] : null);
       const payload: PunchPayload = {
         workMode,
-        latitude: userLocation?.latitude || activeBranchObj.latitude,
-        longitude: userLocation?.longitude || activeBranchObj.longitude,
+        latitude: userLocation?.latitude || activeBranchObj?.latitude,
+        longitude: userLocation?.longitude || activeBranchObj?.longitude,
         accuracy: userLocation?.accuracy || 10,
-        branchId: activeBranchObj.id,
-        branchName: activeBranchObj.name,
-        locationAddress: userLocation?.address || activeBranchObj.address,
-        notes: `Checked in at ${activeBranchObj.name} (${workMode.toUpperCase()})${lateNotice}`,
+        branchId: activeBranchObj?.id,
+        branchName: activeBranchObj?.name || "Main Campus",
+        locationAddress: userLocation?.address || activeBranchObj?.address || "Main Campus",
+        notes: `Checked in at ${activeBranchObj?.name || "Main Campus"} (${workMode.toUpperCase()})${lateNotice}`,
       };
 
       await attendanceService.checkIn(payload);
@@ -308,14 +329,14 @@ export function CheckInOutWidget({
     const todayStr = nowIso.split("T")[0];
 
     try {
-      const activeBranchObj = DEFAULT_BRANCHES.find((b) => b.id === selectedBranch) || DEFAULT_BRANCHES[0];
+      const activeBranchObj = branches.find((b) => b.id === selectedBranch) || (branches.length > 0 ? branches[0] : null);
       const payload: PunchPayload = {
         workMode,
-        latitude: userLocation?.latitude || activeBranchObj.latitude,
-        longitude: userLocation?.longitude || activeBranchObj.longitude,
-        branchId: activeBranchObj.id,
-        branchName: activeBranchObj.name,
-        notes: `Checked out via web portal at ${activeBranchObj.name}`,
+        latitude: userLocation?.latitude || activeBranchObj?.latitude,
+        longitude: userLocation?.longitude || activeBranchObj?.longitude,
+        branchId: activeBranchObj?.id,
+        branchName: activeBranchObj?.name || "Main Campus",
+        notes: `Checked out via web portal at ${activeBranchObj?.name || "Main Campus"}`,
       };
 
       await attendanceService.checkOut(payload);
@@ -548,19 +569,21 @@ export function CheckInOutWidget({
         {/* Action Button & Branch Selector */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
           {/* Branch Selector */}
-          <div className="w-full sm:w-auto">
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-semibold text-slate-700 focus:border-[#EA6118] focus:outline-none"
-            >
-              {DEFAULT_BRANCHES.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  📍 {branch.name} ({branch.city})
-                </option>
-              ))}
-            </select>
-          </div>
+          {branches.length > 0 && (
+            <div className="w-full sm:w-auto">
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-semibold text-slate-700 focus:border-[#EA6118] focus:outline-none"
+              >
+                {branches.map((branch, bIdx) => (
+                  <option key={branch.id || `checkin-br-${bIdx}`} value={branch.id}>
+                    📍 {branch.name} ({branch.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {isCheckedIn ? (
             <button

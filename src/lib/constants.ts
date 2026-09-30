@@ -90,38 +90,7 @@ export interface Branch {
   radiusMeters: number;
 }
 
-export const DEFAULT_BRANCHES: Branch[] = [
-  {
-    id: "branch-1",
-    name: "Chennai Main Campus",
-    code: "CHN-01",
-    city: "Chennai",
-    address: "Anna Salai, Guindy Tech Zone, Chennai, Tamil Nadu - 600032",
-    latitude: 13.0102,
-    longitude: 80.2158,
-    radiusMeters: 500,
-  },
-  {
-    id: "branch-2",
-    name: "Bangalore Tech Hub",
-    code: "BLR-02",
-    city: "Bangalore",
-    address: "Outer Ring Road, Bellandur Tech Hub, Bengaluru, Karnataka - 560103",
-    latitude: 12.9279,
-    longitude: 77.6836,
-    radiusMeters: 500,
-  },
-  {
-    id: "branch-3",
-    name: "Hyderabad Branch",
-    code: "HYD-03",
-    city: "Hyderabad",
-    address: "HITEC City, Madhapur, Hyderabad, Telangana - 500081",
-    latitude: 17.4483,
-    longitude: 78.3748,
-    radiusMeters: 500,
-  },
-];
+export const DEFAULT_BRANCHES: Branch[] = [];
 
 /* ── Company Attendance & Shift Policy Rules ── */
 export const ATTENDANCE_POLICY_CONFIG = {

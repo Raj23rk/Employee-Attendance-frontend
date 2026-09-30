@@ -41,11 +41,11 @@ interface NavItem {
 const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   admin: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Employee Details", href: "/employees", icon: Users, badge: "3 Branches" },
+    { label: "Employee Details", href: "/employees", icon: Users },
     { label: "Attendance & Bio", href: "/attendance", icon: CalendarCheck },
     { label: "Payroll & Salary", href: "/payroll", icon: Wallet },
     { label: "Daily Office Bills", href: "/expenses", icon: Receipt },
-    { label: "Leave Requests", href: "/leave", icon: CalendarDays, badge: "6" },
+    { label: "Leave Requests", href: "/leave", icon: CalendarDays },
     { label: "Tasks & Sprints", href: "/tasks", icon: Target },
     { label: "Reports & Analytics", href: "/reports", icon: FileBarChart2 },
     { label: "Announcements", href: "/announcements", icon: Megaphone },
@@ -53,10 +53,10 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   ceo: [
     { label: "Executive Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Employee Details", href: "/employees", icon: Users, badge: "3 Branches" },
+    { label: "Employee Details", href: "/employees", icon: Users },
     { label: "Financials & Payroll", href: "/payroll", icon: Wallet },
-    { label: "Institutional Analytics", href: "/reports", icon: FileBarChart2, badge: "Q3 Review" },
-    { label: "Confidential Feedback", href: "/feedback", icon: Shield, badge: "CEO Only" },
+    { label: "Institutional Analytics", href: "/reports", icon: FileBarChart2 },
+    { label: "Confidential Feedback", href: "/feedback", icon: Shield },
     { label: "Tasks & OKRs", href: "/tasks", icon: Target },
     { label: "Strategic Circulars", href: "/announcements", icon: Megaphone },
     { label: "Governance & Policies", href: "/settings", icon: Settings },
@@ -64,9 +64,9 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   hr_manager: [
     { label: "HR Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Employee Details", href: "/employees", icon: Users, badge: "3 Branches" },
+    { label: "Employee Details", href: "/employees", icon: Users },
     { label: "Daily Master Sheet", href: "/attendance", icon: CalendarCheck },
-    { label: "Leave Approvals", href: "/leave", icon: CalendarDays, badge: "6" },
+    { label: "Leave Approvals", href: "/leave", icon: CalendarDays },
     { label: "Payroll Muster", href: "/payroll", icon: Wallet },
     { label: "Office Expenses", href: "/expenses", icon: Receipt },
     { label: "Tasks & Sprints", href: "/tasks", icon: Target },
@@ -77,7 +77,7 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   manager: [
     { label: "Team Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Team Attendance", href: "/attendance", icon: CalendarCheck },
-    { label: "Leave Requests", href: "/leave", icon: CalendarDays, badge: "2" },
+    { label: "Leave Requests", href: "/leave", icon: CalendarDays },
     { label: "Kanban Tasks", href: "/tasks", icon: Target },
     { label: "Claim Reviews", href: "/expenses", icon: Receipt },
     { label: "Timesheets", href: "/timesheets", icon: Clock },
@@ -100,7 +100,7 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   accountant: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Payroll Processing", href: "/payroll", icon: Wallet, badge: "Pending" },
+    { label: "Payroll Processing", href: "/payroll", icon: Wallet },
     { label: "Office Bills & Claims", href: "/expenses", icon: Receipt },
     { label: "Attendance Records", href: "/attendance", icon: CalendarCheck },
     { label: "Financial Reports", href: "/reports", icon: FileBarChart2 },
