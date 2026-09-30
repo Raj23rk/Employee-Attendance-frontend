@@ -1535,7 +1535,7 @@ Generated on: ${new Date().toLocaleString()}
                       <input
                         type="text"
                         required
-                        placeholder="Dr. K. Senthil / Ananya HR"
+                        placeholder="Dr. K. Senthil / "
                         value={onboardForm.name}
                         onChange={(e) => setOnboardForm({ ...onboardForm, name: e.target.value })}
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"

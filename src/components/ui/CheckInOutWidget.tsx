@@ -75,8 +75,8 @@ export function CheckInOutWidget({
   }, []);
 
   // Monthly Policy Metrics
-  const [monthlyLateCount, setMonthlyLateCount] = useState<number>(2); // Default mock for demo
-  const [permissionHoursUsed, setPermissionHoursUsed] = useState<number>(1.0); // Out of 2.0 max
+  const [monthlyLateCount, setMonthlyLateCount] = useState<number>(0);
+  const [permissionHoursUsed, setPermissionHoursUsed] = useState<number>(0);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionForm, setPermissionForm] = useState({
     date: new Date().toISOString().split("T")[0],
