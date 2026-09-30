@@ -77,6 +77,12 @@ export const usersService = {
     const response = await apiClient.put(`/users/${id}`, payload);
     return response.data;
   },
+
+  // 3.8 Delete / Remove Employee (HR / Admin)
+  async deleteEmployee(id: string) {
+    const response = await apiClient.delete(`/users/${id}`);
+    return response.data;
+  },
 };
 
 export default usersService;

@@ -33,6 +33,7 @@ import {
   Upload,
   ArrowRight,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
@@ -134,6 +135,35 @@ function EmployeesContent() {
     }
   }, []);
 
+  // Delete / Remove Employee Handler
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  const handleDeleteEmployee = async (emp: User) => {
+    const empId = (emp as any)._id || emp.id || emp.employeeId;
+    if (!empId) return;
+    const confirmMsg = `Are you sure you want to remove employee "${emp.name}" (${emp.employeeId})?\n\nThis will remove their profile from the database.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsDeletingId(empId);
+    try {
+      await usersService.deleteEmployee(empId);
+      toast.success(`Employee "${emp.name}" removed successfully.`);
+      if (selectedEmployee && ((selectedEmployee as any)._id === empId || selectedEmployee.id === empId || selectedEmployee.employeeId === emp.employeeId)) {
+        setSelectedEmployee(null);
+      }
+      await fetchEmployees();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to delete employee.";
+      toast.error(Array.isArray(msg) ? msg.join(", ") : msg);
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
   // Fetch Employees from API
   const fetchEmployees = useCallback(async () => {
     setIsLoading(true);
@@ -154,41 +184,92 @@ function EmployeesContent() {
 
       const data = res?.data || res;
       if (Array.isArray(data)) {
-        const formatted = data.map((emp: any) => ({
-          ...emp,
-          id: emp.id || emp._id || "emp-id",
-          name: emp.name || emp.fullName || "Staff",
-          email: emp.email || "",
-          employeeId: emp.employeeId || "WG-EMP",
-          department: emp.department || "General",
-          designation: emp.designation || "Staff",
-          role: (emp.role?.toLowerCase() as any) || "employee",
-          branch: emp.branch || emp.branchName || "Main Campus",
-          dateOfJoining: emp.dateOfJoining || emp.joiningDate || "-",
-          isActive: emp.isActive !== undefined ? emp.isActive : true,
-          todayAttendance: emp.todayAttendance || {
-            isCheckedIn: !!emp.checkInTime || emp.status === "PRESENT" || emp.status === "LATE",
-            checkInTime: emp.checkInTime || (emp.attendance?.checkInTime) || "--:--",
-            checkOutTime: emp.checkOutTime || (emp.attendance?.checkOutTime) || "--:--",
-            status: emp.status || (emp.attendance?.status) || (emp.checkInTime ? "PRESENT" : "ABSENT"),
-            workMode: emp.workMode || "office",
-          },
-          monthlyStats: emp.monthlyStats || {
-            lateCount: emp.lateCount || 0,
-            permissionHoursUsed: emp.permissionHoursUsed || 0,
-            casualLeavesUsed: emp.casualLeavesUsed || 0,
-            medicalLeavesUsed: emp.medicalLeavesUsed || 0,
-            lopDays: emp.lopDays || 0,
-          },
-          bankDetails: emp.bankDetails || {
-            accountHolderName: emp.bankDetails?.accountHolderName || emp.name || "Staff",
-            accountNumber: emp.bankDetails?.accountNumber || emp.accountNumber || "-",
-            bankName: emp.bankDetails?.bankName || emp.bankName || "HDFC Bank",
-            ifscCode: emp.bankDetails?.ifscCode || emp.ifscCode || "-",
-            branchName: emp.bankDetails?.branchName || emp.branchName || "Campus Branch",
-            upiId: emp.bankDetails?.upiId || emp.upiId || "-",
-          },
-        }));
+        const formatted = data.map((emp: any) => {
+          const isCheckedIn =
+            emp.todayStatus === "PRESENT" ||
+            emp.todayStatus === "LATE" ||
+            (emp.checkin && emp.checkin !== "-" && emp.checkin !== "--:--") ||
+            !!emp.todayAttendance?.isCheckedIn;
+
+          const checkInTime =
+            emp.checkin && emp.checkin !== "-"
+              ? emp.checkin
+              : emp.todayAttendance?.checkInTime || "--:--";
+
+          const checkOutTime =
+            emp.checkout && emp.checkout !== "-"
+              ? emp.checkout
+              : emp.todayAttendance?.checkOutTime || "--:--";
+
+          const status =
+            emp.todayStatus ||
+            emp.status ||
+            emp.todayAttendance?.status ||
+            (isCheckedIn ? "PRESENT" : "ABSENT");
+
+          return {
+            ...emp,
+            id: emp._id || emp.id || emp.employeeId || "emp-id",
+            _id: emp._id || emp.id,
+            name: emp.name || emp.fullName || "Staff",
+            email: emp.email || "",
+            phone: emp.phone || "",
+            employeeId: emp.employeeId || "WG-EMP",
+            department: emp.department || "General",
+            designation: emp.designation || "Staff",
+            gender: emp.gender || "MALE",
+            role: (emp.role?.toLowerCase() as any) || "employee",
+            branch: emp.branch || emp.branchName || "Main Campus",
+            dateOfJoining: emp.dateOfJoining || emp.joiningDate || "-",
+            isActive: emp.isActive !== undefined ? emp.isActive : true,
+            todayAttendance: {
+              isCheckedIn,
+              checkInTime,
+              checkOutTime,
+              status,
+              workMode: emp.workMode || "office",
+            },
+            monthlyStats: {
+              lateCount:
+                emp.monthlyMetrics?.lateDays ??
+                emp.monthlyStats?.lateCount ??
+                (emp.isLate ? 1 : 0),
+              permissionHoursUsed:
+                emp.monthlyMetrics?.permissionHoursUsed ??
+                emp.monthlyStats?.permissionHoursUsed ??
+                0,
+              casualLeavesUsed:
+                emp.leaveBalances?.casual ??
+                emp.monthlyStats?.casualLeavesUsed ??
+                0,
+              medicalLeavesUsed:
+                emp.leaveBalances?.sick ??
+                emp.monthlyStats?.medicalLeavesUsed ??
+                0,
+              lopDays:
+                emp.leaveBalances?.lossOfPay ??
+                emp.monthlyMetrics?.latePenaltyHalfDays ??
+                emp.monthlyStats?.lopDays ??
+                0,
+            },
+            bankDetails: {
+              accountHolderName:
+                emp.bankDetails?.accountName ||
+                emp.bankDetails?.accountHolderName ||
+                emp.name ||
+                "Staff",
+              accountNumber:
+                emp.bankDetails?.accountNumber || emp.accountNumber || "-",
+              bankName:
+                emp.bankDetails?.bankName || emp.bankName || "HDFC Bank",
+              ifscCode:
+                emp.bankDetails?.ifscCode || emp.ifscCode || "-",
+              branchName:
+                emp.bankDetails?.branchName || emp.branchName || "Campus Branch",
+              upiId: emp.bankDetails?.upiId || emp.upiId || "-",
+            },
+          };
+        });
         setEmployees(formatted);
       } else {
         setEmployees([]);
@@ -225,25 +306,28 @@ function EmployeesContent() {
 
   // Filter Employees
   const filteredEmployees = employees.filter((emp) => {
+    const s = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      searchTerm === "" ||
-      emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.designation?.toLowerCase().includes(searchTerm.toLowerCase());
+      s === "" ||
+      emp.name?.toLowerCase().includes(s) ||
+      emp.employeeId?.toLowerCase().includes(s) ||
+      emp.email?.toLowerCase().includes(s) ||
+      emp.phone?.toLowerCase().includes(s) ||
+      emp.department?.toLowerCase().includes(s) ||
+      emp.designation?.toLowerCase().includes(s) ||
+      emp.branch?.toLowerCase().includes(s);
 
     const matchesBranch =
       selectedBranchFilter === "all" ||
       emp.branch?.toLowerCase().includes(selectedBranchFilter.toLowerCase());
 
     const matchesDept =
-      selectedDeptFilter === "all" || emp.department === selectedDeptFilter;
+      selectedDeptFilter === "all" || emp.department?.toLowerCase() === selectedDeptFilter.toLowerCase();
 
     const matchesStatus =
       selectedStatusFilter === "all" ||
       (selectedStatusFilter === "checked_in" && emp.todayAttendance?.isCheckedIn) ||
-      (selectedStatusFilter === "late" && emp.todayAttendance?.status === "LATE") ||
+      (selectedStatusFilter === "late" && (emp.todayAttendance?.status === "LATE" || (emp as any).isLate)) ||
       (selectedStatusFilter === "on_leave" && emp.todayAttendance?.status === "ON_LEAVE");
 
     return matchesSearch && matchesBranch && matchesDept && matchesStatus;
@@ -693,15 +777,25 @@ Generated on: ${new Date().toLocaleString()}
           {/* Search and Filters Bar */}
           <div className="flex flex-col md:flex-row items-center gap-3 rounded-2xl border border-[#E2E4EF] bg-white p-3 shadow-sm">
             {/* Search */}
-            <div className="flex items-center gap-2 w-full md:w-1/3">
-              <Search className="h-4 w-4 text-[#8A8FB0] ml-2" />
+            <div className="flex items-center gap-2 w-full md:w-1/3 relative">
+              <Search className="h-4 w-4 text-[#8A8FB0] ml-2 shrink-0" />
               <input
                 type="text"
-                placeholder="Search name, employee ID, role, phone..."
+                placeholder="Search name, ID, email, role, phone, branch..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-transparent text-xs text-[#12173A] placeholder-[#8A8FB0] focus:outline-none"
+                className="w-full bg-transparent text-xs text-[#12173A] placeholder-[#8A8FB0] focus:outline-none pr-6"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             <div className="h-5 w-[1px] bg-slate-200 hidden md:block" />
@@ -890,21 +984,31 @@ Generated on: ${new Date().toLocaleString()}
 
                         {/* Action Column */}
                         <td className="py-4 px-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleOpenEmployeePopup(member)}
-                              className="flex items-center gap-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA6118] px-3 py-1.5 font-bold text-xs transition-colors shadow-xs"
+                              className="flex items-center gap-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA6118] px-2.5 py-1.5 font-bold text-xs transition-colors shadow-xs"
+                              title="View & Edit Employee Details"
                             >
                               <Eye className="h-3.5 w-3.5" />
-                              <span>Action</span>
+                              <span>View</span>
                             </button>
 
                             <button
                               onClick={() => handleDownloadIndividualReport(member)}
                               className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors"
-                              title="Download Individual Report"
+                              title="Download Individual Report (CSV/Dossier)"
                             >
                               <Printer className="h-3.5 w-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteEmployee(member)}
+                              disabled={isDeletingId === ((member as any)._id || member.id || member.employeeId)}
+                              className="rounded-xl border border-red-200 bg-red-50 p-1.5 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors disabled:opacity-50"
+                              title="Remove / Delete Employee from Database"
+                            >
+                              <Trash2 className={`h-3.5 w-3.5 ${isDeletingId === ((member as any)._id || member.id || member.employeeId) ? "animate-spin" : ""}`} />
                             </button>
                           </div>
                         </td>
@@ -1313,15 +1417,28 @@ Generated on: ${new Date().toLocaleString()}
 
             {/* Footer Actions */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => handleDownloadIndividualReport(selectedEmployee)}
-              >
-                <Printer className="h-4 w-4" />
-                <span>Export Staff Dossier</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => handleDownloadIndividualReport(selectedEmployee)}
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>Export Staff Dossier</span>
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteEmployee(selectedEmployee)}
+                  disabled={isDeletingId === ((selectedEmployee as any)._id || selectedEmployee.id || selectedEmployee.employeeId)}
+                  className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-2 text-xs font-bold text-red-600 transition-colors disabled:opacity-50"
+                  title="Permanently remove employee"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Remove Employee</span>
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 <Button
