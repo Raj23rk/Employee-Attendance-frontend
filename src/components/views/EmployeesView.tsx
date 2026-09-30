@@ -127,6 +127,12 @@ function EmployeesContent() {
           code: b.code || `BR-${i + 1}`,
         }));
         setBranches(formatted);
+        if (formatted.length > 0) {
+          setOnboardForm((prev) => ({
+            ...prev,
+            branch: prev.branch || formatted[0].name,
+          }));
+        }
       } else {
         setBranches([]);
       }
@@ -385,18 +391,25 @@ function EmployeesContent() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const selectedBranch = onboardForm.branch || branches[0]?.name || "";
+      if (!selectedBranch) {
+        toast.warning("Please select or add a company branch first.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload: OnboardEmployeePayload = {
         employeeId: onboardForm.employeeId,
         name: onboardForm.name,
         email: onboardForm.email,
-        password: onboardForm.password,
+        password: onboardForm.password || "Password@123",
         role: onboardForm.role,
         gender: onboardForm.gender,
         department: onboardForm.department,
         designation: onboardForm.designation,
         phone: onboardForm.phone,
         dateOfJoining: onboardForm.dateOfJoining,
-        branch: onboardForm.branch,
+        branch: selectedBranch,
         bankDetails: {
           accountHolderName: onboardForm.bankHolderName || onboardForm.name,
           accountNumber: onboardForm.bankAccountNumber || "50100" + Math.floor(10000000 + Math.random() * 90000000),
@@ -408,21 +421,21 @@ function EmployeesContent() {
       };
 
       await usersService.onboardEmployee(payload);
-      toast.success(`Employee ${onboardForm.name} successfully onboarded to ${onboardForm.branch}!`);
+      toast.success(`Employee ${onboardForm.name} successfully onboarded to ${selectedBranch}!`);
       setShowAddModal(false);
       setOnboardStep(1);
       setOnboardForm({
         name: "",
         email: "",
-        password: "",
+        password: "Password@123",
         role: "EMPLOYEE",
-        gender: "male",
+        gender: "MALE",
         department: "Engineering",
         designation: "",
         employeeId: `WG-${Math.floor(1000 + Math.random() * 9000)}`,
         phone: "",
         dateOfJoining: new Date().toISOString().split("T")[0],
-        branch: branches[0]?.name || "Main Campus",
+        branch: branches[0]?.name || "",
         bankHolderName: "",
         bankAccountNumber: "",
         bankName: "HDFC Bank",
@@ -645,6 +658,10 @@ Generated on: ${new Date().toLocaleString()}
             className="gap-2 shadow-lg shadow-orange-600/20"
             onClick={() => {
               setOnboardStep(1);
+              setOnboardForm((prev) => ({
+                ...prev,
+                branch: prev.branch || branches[0]?.name || "",
+              }));
               setShowAddModal(true);
             }}
           >
@@ -1706,15 +1723,20 @@ Generated on: ${new Date().toLocaleString()}
                     <div>
                       <label className="font-semibold text-slate-700">Assigned Branch</label>
                       <select
-                        value={onboardForm.branch}
+                        required
+                        value={onboardForm.branch || branches[0]?.name || ""}
                         onChange={(e) => setOnboardForm({ ...onboardForm, branch: e.target.value })}
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white font-semibold"
                       >
-                        {branches.map((b, bIdx) => (
-                          <option key={b.id || `onboard-opt-${bIdx}`} value={b.name}>
-                            📍 {b.name} ({b.city})
-                          </option>
-                        ))}
+                        {branches.length === 0 ? (
+                          <option value="">No branches found - please add branch first</option>
+                        ) : (
+                          branches.map((b, bIdx) => (
+                            <option key={b.id || `onboard-opt-${bIdx}`} value={b.name}>
+                              📍 {b.name} ({b.city})
+                            </option>
+                          ))
+                        )}
                       </select>
                     </div>
                   </div>
