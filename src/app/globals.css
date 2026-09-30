@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../**/*.{js,ts,jsx,tsx,mdx}";
+@source "../../src/**/*.{js,ts,jsx,tsx,mdx}";
 
 /* ── Theme tokens ── */
 @theme inline {
@@ -87,9 +89,4 @@ h1, h2, h3, h4, .font-heading {
 /* ── Sidebar nav link ── */
 .wg-navlink {
   transition: background 0.15s ease, color 0.15s ease;
-}
-
-/* ── Hide Astro Dev Toolbar ── */
-astro-dev-toolbar {
-  display: none !important;
 }

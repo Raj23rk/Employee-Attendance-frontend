@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { FileText, Download, Upload, Shield, Laptop, Monitor, CreditCard, RefreshCw, X, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -342,11 +342,9 @@ function DocumentsContent() {
 
 export function DocumentsView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <DocumentsContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <DocumentsContent />
+    </AppShell>
   );
 }
 export default DocumentsView;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Receipt, Plus, Download, CheckCircle2, Clock, DollarSign, Filter, FileText, RefreshCw, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -392,11 +392,9 @@ function ExpensesContent() {
 
 export function ExpensesView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <ExpensesContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <ExpensesContent />
+    </AppShell>
   );
 }
 export default ExpensesView;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Target, Plus, CheckCircle2, Clock, AlertCircle, Sparkles, Tag, User, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -292,11 +292,9 @@ function TasksContent() {
 
 export function TasksView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <TasksContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <TasksContent />
+    </AppShell>
   );
 }
 export default TasksView;

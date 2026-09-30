@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -13,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  CreditCard,
   Target,
   Receipt,
   Shield,
@@ -22,7 +25,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { type UserRole, ROLE_LABELS, formatRoleLabel } from "@/lib/constants";
+import { type UserRole, formatRoleLabel } from "@/lib/constants";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/helpers";
@@ -114,16 +117,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobile }: SidebarProps) {
-  const [pathname, setPathname] = useState("");
+  const pathname = usePathname() || "";
   const { user, logout } = useAuth();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPathname(window.location.pathname.replace(/\/$/, "") || "/");
-    }
-  }, []);
-
-  const rawRole = (user?.role || "employee").toLowerCase().replace(/[- ]/g, "_") as UserRole;
+  let rawRole = (user?.role || "employee").toLowerCase().replace(/[- ]/g, "_") as UserRole;
+  if ((rawRole as string) === "hr") rawRole = "hr_manager";
   const currentRole: UserRole = ROLE_NAV_ITEMS[rawRole] ? rawRole : "employee";
   const navItems = ROLE_NAV_ITEMS[currentRole] || ROLE_NAV_ITEMS.employee;
 
@@ -137,9 +135,9 @@ export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobi
     >
       {/* Brand Header */}
       <div className="flex h-20 items-center justify-between px-5 border-b border-[#16326F]/60">
-        <a href="/dashboard" className="flex items-center">
+        <Link href="/dashboard" className="flex items-center">
           <Logo variant="light" collapsed={collapsed} />
-        </a>
+        </Link>
         <button
           onClick={onToggleCollapse}
           className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg bg-[#16326F]/80 text-[#8A8FB0] hover:bg-[#204382] hover:text-white transition-colors"
@@ -171,7 +169,7 @@ export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobi
           const Icon = item.icon;
 
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               onClick={onCloseMobile}
@@ -204,7 +202,7 @@ export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobi
                   )}
                 </div>
               )}
-            </a>
+            </Link>
           );
         })}
       </div>
@@ -212,7 +210,7 @@ export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobi
       {/* User Profile & Logout */}
       <div className="p-3 border-t border-[#16326F]/60 bg-[#071333]">
         <div className={cn("flex items-center gap-3", collapsed ? "justify-center" : "justify-between")}>
-          <a href="/profile" className="flex items-center gap-2.5 overflow-hidden hover:opacity-90 transition-opacity">
+          <Link href="/profile" className="flex items-center gap-2.5 overflow-hidden hover:opacity-90 transition-opacity">
             <Avatar name={user?.name || "User"} size="md" className="ring-2 ring-[#EA6118]/40" />
             {!collapsed && (
               <div className="flex flex-col truncate">
@@ -220,7 +218,7 @@ export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobi
                 <span className="truncate text-[10px] text-[#8A8FB0]">{user?.email}</span>
               </div>
             )}
-          </a>
+          </Link>
           {!collapsed && (
             <button
               onClick={logout}

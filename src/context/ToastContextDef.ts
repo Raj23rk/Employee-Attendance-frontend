@@ -10,8 +10,17 @@ export interface ToastItem {
   duration?: number;
 }
 
+export interface ToastMethods {
+  success: (message: string, title?: string) => void;
+  error: (message: string, title?: string) => void;
+  warning: (message: string, title?: string) => void;
+  info: (message: string, title?: string) => void;
+  show: (message: string, type?: ToastType, title?: string, duration?: number) => void;
+}
+
 export interface ToastContextType {
   toasts: ToastItem[];
+  toast: ToastMethods;
   showToast: (message: string, type?: ToastType, title?: string, duration?: number) => void;
   removeToast: (id: string) => void;
   success: (message: string, title?: string) => void;

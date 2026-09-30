@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Wallet, Download, FileText, CheckCircle2, AlertCircle, RefreshCw, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -385,11 +385,9 @@ function PayrollContent() {
 
 export function PayrollView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <PayrollContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <PayrollContent />
+    </AppShell>
   );
 }
 export default PayrollView;

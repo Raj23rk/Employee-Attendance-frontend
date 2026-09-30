@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Megaphone, Plus, Bell, Calendar, Sparkles, Heart, RefreshCw, X, Send, MapPin, Plane } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -277,11 +277,9 @@ function AnnouncementsContent() {
 
 export function AnnouncementsView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <AnnouncementsContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <AnnouncementsContent />
+    </AppShell>
   );
 }
 export default AnnouncementsView;

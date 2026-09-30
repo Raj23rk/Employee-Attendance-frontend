@@ -4,26 +4,39 @@ import { ToastContext } from "./ToastContextDef";
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
+    const fallbackSuccess = (msg: string, title?: string) => {
+      if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "success", title);
+    };
+    const fallbackError = (msg: string, title?: string) => {
+      if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "error", title);
+    };
+    const fallbackWarning = (msg: string, title?: string) => {
+      if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "warning", title);
+    };
+    const fallbackInfo = (msg: string, title?: string) => {
+      if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "info", title);
+    };
+    const fallbackShow = (msg: string, type: any = "info", title?: string, duration?: number) => {
+      if (typeof window !== "undefined" && (window as any).showToast) {
+        (window as any).showToast(msg, type, title, duration);
+      }
+    };
+
     return {
       toasts: [],
-      showToast: (msg: string, type: any = "info") => {
-        if (typeof window !== "undefined" && (window as any).showToast) {
-          (window as any).showToast(msg, type);
-        }
+      toast: {
+        success: fallbackSuccess,
+        error: fallbackError,
+        warning: fallbackWarning,
+        info: fallbackInfo,
+        show: fallbackShow,
       },
+      showToast: fallbackShow,
       removeToast: () => {},
-      success: (msg: string, title?: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "success", title);
-      },
-      error: (msg: string, title?: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "error", title);
-      },
-      warning: (msg: string, title?: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "warning", title);
-      },
-      info: (msg: string, title?: string) => {
-        if (typeof window !== "undefined" && (window as any).showToast) (window as any).showToast(msg, "info", title);
-      },
+      success: fallbackSuccess,
+      error: fallbackError,
+      warning: fallbackWarning,
+      info: fallbackInfo,
     };
   }
   return context;

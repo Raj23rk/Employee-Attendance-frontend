@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -35,6 +35,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { usersService, type OnboardEmployeePayload } from "@/services/users.service";
 import { leavesService } from "@/services/leaves.service";
 import { dashboardService } from "@/services/dashboard.service";
@@ -47,7 +49,7 @@ import {
   type BankDetails,
   formatRoleLabel,
 } from "@/lib/constants";
-import { MOCK_FULL_EMPLOYEE_LIST } from "@/lib/mock-data";
+
 
 function EmployeesContent() {
   const { user } = useAuth();
@@ -56,7 +58,7 @@ function EmployeesContent() {
   const isHRorCEO = role === "hr_manager" || role === "ceo" || role === "admin";
 
   // Data States
-  const [employees, setEmployees] = useState<User[]>(MOCK_FULL_EMPLOYEE_LIST);
+  const [employees, setEmployees] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>(DEFAULT_BRANCHES);
   const [isLoading, setIsLoading] = useState(false);
   const [activeMainTab, setActiveMainTab] = useState<"directory" | "leave_list">("directory");
@@ -116,14 +118,21 @@ function EmployeesContent() {
       const res = await organizationService.getBranches();
       const data = res?.data || res;
       if (Array.isArray(data) && data.length > 0) {
-        setBranches(data);
+        const formatted = data.map((b: any, i: number) => ({
+          ...b,
+          id: b.id || b._id || `branch-${i + 1}`,
+          name: b.name || `Branch ${i + 1}`,
+          city: b.city || "Campus",
+          code: b.code || `BR-${i + 1}`,
+        }));
+        setBranches(formatted);
       }
     } catch {
       // Keep default branches
     }
   }, []);
 
-  // Fetch Employees from API with fallback
+  // Fetch Employees from API
   const fetchEmployees = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -142,45 +151,49 @@ function EmployeesContent() {
       }
 
       const data = res?.data || res;
-      if (Array.isArray(data) && data.length > 0) {
-        const merged = data.map((emp: any, i: number) => {
-          const mockMatch = MOCK_FULL_EMPLOYEE_LIST.find(
-            (m) => m.email?.toLowerCase() === emp.email?.toLowerCase() || m.employeeId === emp.employeeId
-          );
-          return {
-            ...emp,
-            branch: emp.branch || mockMatch?.branch || DEFAULT_BRANCHES[i % DEFAULT_BRANCHES.length].name,
-            dateOfJoining: emp.dateOfJoining || mockMatch?.dateOfJoining || "2023-01-15",
-            bankDetails: emp.bankDetails || mockMatch?.bankDetails || {
-              accountHolderName: emp.name || "Employee",
-              accountNumber: `50100${100000000 + i}`,
-              bankName: "HDFC Bank",
-              ifscCode: "HDFC0001234",
-              branchName: "Tech Park Branch",
-              upiId: `${emp.email?.split("@")[0] || "user"}@hdfcbank`,
-            },
-            todayAttendance: emp.todayAttendance || mockMatch?.todayAttendance || {
-              isCheckedIn: i % 3 !== 2,
-              checkInTime: i % 3 === 0 ? "09:35 AM" : i % 3 === 1 ? "09:48 AM" : "--:--",
-              checkOutTime: i % 3 === 0 ? "07:05 PM" : "--:--",
-              status: i % 3 === 0 ? "PRESENT" : i % 3 === 1 ? "LATE" : "ON_LEAVE",
-            },
-            monthlyStats: emp.monthlyStats || mockMatch?.monthlyStats || {
-              lateCount: (i * 2) % 5,
-              permissionHoursUsed: (i * 0.5) % 2.5,
-              casualLeavesUsed: i % 2,
-              medicalLeavesUsed: 0,
-              lopDays: i === 4 ? 1.0 : 0,
-            },
-            isActive: emp.isActive !== undefined ? emp.isActive : true,
-          };
-        });
-        setEmployees(merged);
+      if (Array.isArray(data)) {
+        const formatted = data.map((emp: any) => ({
+          ...emp,
+          id: emp.id || emp._id || "emp-id",
+          name: emp.name || emp.fullName || "Staff",
+          email: emp.email || "",
+          employeeId: emp.employeeId || "WG-EMP",
+          department: emp.department || "General",
+          designation: emp.designation || "Staff",
+          role: (emp.role?.toLowerCase() as any) || "employee",
+          branch: emp.branch || emp.branchName || "Main Campus",
+          dateOfJoining: emp.dateOfJoining || emp.joiningDate || "-",
+          isActive: emp.isActive !== undefined ? emp.isActive : true,
+          todayAttendance: emp.todayAttendance || {
+            isCheckedIn: !!emp.checkInTime || emp.status === "PRESENT" || emp.status === "LATE",
+            checkInTime: emp.checkInTime || (emp.attendance?.checkInTime) || "--:--",
+            checkOutTime: emp.checkOutTime || (emp.attendance?.checkOutTime) || "--:--",
+            status: emp.status || (emp.attendance?.status) || (emp.checkInTime ? "PRESENT" : "ABSENT"),
+            workMode: emp.workMode || "office",
+          },
+          monthlyStats: emp.monthlyStats || {
+            lateCount: emp.lateCount || 0,
+            permissionHoursUsed: emp.permissionHoursUsed || 0,
+            casualLeavesUsed: emp.casualLeavesUsed || 0,
+            medicalLeavesUsed: emp.medicalLeavesUsed || 0,
+            lopDays: emp.lopDays || 0,
+          },
+          bankDetails: emp.bankDetails || {
+            accountHolderName: emp.bankDetails?.accountHolderName || emp.name || "Staff",
+            accountNumber: emp.bankDetails?.accountNumber || emp.accountNumber || "-",
+            bankName: emp.bankDetails?.bankName || emp.bankName || "HDFC Bank",
+            ifscCode: emp.bankDetails?.ifscCode || emp.ifscCode || "-",
+            branchName: emp.bankDetails?.branchName || emp.branchName || "Campus Branch",
+            upiId: emp.bankDetails?.upiId || emp.upiId || "-",
+          },
+        }));
+        setEmployees(formatted);
       } else {
-        setEmployees(MOCK_FULL_EMPLOYEE_LIST);
+        setEmployees([]);
       }
-    } catch {
-      setEmployees(MOCK_FULL_EMPLOYEE_LIST);
+    } catch (err) {
+      console.error("Failed to load employees from API:", err);
+      setEmployees([]);
     } finally {
       setIsLoading(false);
     }
@@ -633,14 +646,14 @@ Generated on: ${new Date().toLocaleString()}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {branches.map((b) => {
+              {branches.map((b, bIdx) => {
                 const branchStaffCount = employees.filter((e) =>
                   e.branch?.toLowerCase().includes(b.name.toLowerCase()) || e.branch?.toLowerCase().includes(b.city.toLowerCase())
                 ).length;
 
                 return (
                   <div
-                    key={b.id}
+                    key={b.id || `branch-strip-${bIdx}`}
                     onClick={() => setSelectedBranchFilter(b.name)}
                     className={`cursor-pointer rounded-2xl p-3.5 transition-all border ${
                       selectedBranchFilter === b.name
@@ -688,9 +701,9 @@ Generated on: ${new Date().toLocaleString()}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
                 className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:border-[#EA6118] focus:outline-none"
               >
-                <option value="all">All Branches ({branches.length})</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.name}>
+                <option key="all-branches" value="all">All Branches ({branches.length})</option>
+                {branches.map((b, bIdx) => (
+                  <option key={b.id || `branch-opt-${bIdx}`} value={b.name}>
                     {b.name} ({b.city})
                   </option>
                 ))}
@@ -792,7 +805,7 @@ Generated on: ${new Date().toLocaleString()}
                     const lateCount = member.monthlyStats?.lateCount ?? 0;
 
                     return (
-                      <tr key={member.id || idx} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={member.id ? `emp-${member.id}-${idx}` : `emp-row-${idx}`} className="hover:bg-slate-50/70 transition-colors">
                         {/* ID Column */}
                         <td className="py-4 px-3 font-mono font-bold text-slate-900">{id}</td>
 
@@ -933,8 +946,8 @@ Generated on: ${new Date().toLocaleString()}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {allLeaves.map((lv) => (
-                  <tr key={lv.id} className="hover:bg-slate-50/70">
+                {allLeaves.map((lv, lIdx) => (
+                  <tr key={lv.id ? `leave-${lv.id}-${lIdx}` : `leave-row-${lIdx}`} className="hover:bg-slate-50/70">
                     <td className="py-3 px-3">
                       <p className="font-bold text-slate-900">{lv.employeeName}</p>
                       <p className="text-[11px] text-slate-400 font-mono">{lv.employeeId}</p>
@@ -1567,8 +1580,8 @@ Generated on: ${new Date().toLocaleString()}
                         onChange={(e) => setOnboardForm({ ...onboardForm, branch: e.target.value })}
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white font-semibold"
                       >
-                        {branches.map((b) => (
-                          <option key={b.id} value={b.name}>
+                        {branches.map((b, bIdx) => (
+                          <option key={b.id || `onboard-opt-${bIdx}`} value={b.name}>
                             📍 {b.name} ({b.city})
                           </option>
                         ))}
@@ -1771,11 +1784,9 @@ Generated on: ${new Date().toLocaleString()}
 
 export function EmployeesView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <EmployeesContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <EmployeesContent />
+    </AppShell>
   );
 }
 export default EmployeesView;

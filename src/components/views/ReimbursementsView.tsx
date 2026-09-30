@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { CreditCard, Plus, Download, CheckCircle2, Clock, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -195,11 +195,9 @@ function ReimbursementsContent() {
 
 export function ReimbursementsView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <ReimbursementsContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <ReimbursementsContent />
+    </AppShell>
   );
 }
 export default ReimbursementsView;

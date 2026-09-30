@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { ToastProvider, useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { Logo } from "@/components/ui/Logo";
 import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 
@@ -90,10 +90,14 @@ function LoginForm() {
         <div className="relative z-10 my-auto flex flex-col items-center text-center py-6">
           {/* 3D Mascot Character */}
           <div className="relative mb-6 flex items-center justify-center">
-            <div className="relative h-64 w-64 sm:h-72 sm:w-72 transition-transform duration-300 hover:scale-[1.02]">
+            <div 
+              className="relative h-64 w-64 sm:h-72 sm:w-72 max-w-[280px] max-h-[280px] transition-transform duration-300 hover:scale-[1.02]"
+              style={{ maxWidth: 280, maxHeight: 280 }}
+            >
               <img
                 src="/bdt_mascot.webp"
                 alt="WeGrow Mascot"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 className="h-full w-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.5)]"
               />
             </div>
@@ -119,7 +123,7 @@ function LoginForm() {
 
         {/* 3. Footer */}
         <div className="relative z-10 pt-4 text-xs font-normal text-[#64748B]">
-          © {new Date().getFullYear()} WeGrow Skill Campus &amp; B School
+          © <span suppressHydrationWarning>{new Date().getFullYear()}</span> WeGrow Skill Campus &amp; B School
         </div>
       </div>
 
@@ -243,12 +247,6 @@ function LoginForm() {
 }
 
 export function LoginView() {
-  return (
-    <ToastProvider>
-      <AuthProvider>
-        <LoginForm />
-      </AuthProvider>
-    </ToastProvider>
-  );
+  return <LoginForm />;
 }
 export default LoginView;

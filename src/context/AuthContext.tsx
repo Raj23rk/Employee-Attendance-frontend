@@ -1,41 +1,32 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from "react";
 import type { User, UserRole } from "@/lib/constants";
-import { MOCK_USERS } from "@/lib/mock-data";
+
 import { authService } from "@/services/auth.service";
 import { usersService } from "@/services/users.service";
+import { safeJsonParse } from "@/lib/helpers";
 import { AuthContext, type AuthContextType } from "./AuthContextDef";
 
 export { AuthContext, type AuthContextType };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Synchronous session restore from localStorage for instant rendering
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored = localStorage.getItem("wg_user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-    const storedUser = localStorage.getItem("wg_user");
-    return !!token && !storedUser;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUser = useCallback(async () => {
     try {
       const response = await usersService.getMe();
       const userData: any = (response as any)?.data || response;
       if (userData && (userData.id || userData._id || userData.email || userData.name)) {
+        const rawRole = (userData.role || "employee").toLowerCase().replace(/[- ]/g, "_");
+        const normalizedRole: UserRole = (rawRole === "hr" ? "hr_manager" : rawRole) as UserRole;
+
         const formattedUser: User = {
           id: userData.id || userData._id || "u-api",
           name: userData.name || userData.fullName || "WeGrow Member",
           email: userData.email || "",
-          role: (userData.role?.toLowerCase() as UserRole) || "employee",
+          role: normalizedRole,
           department: userData.department || "General",
           employeeId: userData.employeeId || "WG-EMP",
           designation: userData.designation,
@@ -59,9 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem("wg_user");
 
     if (stored && !user) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
+      const parsed = safeJsonParse<User | null>(stored, null);
+      if (parsed) {
+        setUser(parsed);
+      } else {
         localStorage.removeItem("wg_user");
       }
     }
@@ -78,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-      // 1. Attempt Real Backend API Authentication
+      // 1. Live Backend API Authentication
       const result: any = await authService.login({ identifier: email.trim(), password });
 
       const token = result?.accessToken || result?.data?.accessToken;
@@ -86,12 +78,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const refreshToken = result?.refreshToken || result?.data?.refreshToken;
 
       if (token && apiUser) {
-        // Normalize user format
+        const rawRole = (apiUser.role || "employee").toLowerCase().replace(/[- ]/g, "_");
+        const normalizedRole: UserRole = (rawRole === "hr" ? "hr_manager" : rawRole) as UserRole;
+
         const formattedUser: User = {
           id: apiUser.id || apiUser._id || "u-api",
           name: apiUser.name || apiUser.fullName || "WeGrow Member",
           email: apiUser.email || cleanEmail,
-          role: (apiUser.role?.toLowerCase() as UserRole) || "employee",
+          role: normalizedRole,
           department: apiUser.department || "General",
           employeeId: apiUser.employeeId || "WG-EMP",
           designation: apiUser.designation,
@@ -113,36 +107,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
     } catch (err: any) {
-      // 2. Offline / Mock fallback for demo seed accounts (supports email or employeeId)
-      const mockUser = 
-        MOCK_USERS[cleanEmail] || 
-        Object.values(MOCK_USERS).find(
-          (u) => u.employeeId?.toLowerCase() === cleanEmail || u.email?.toLowerCase() === cleanEmail
-        );
-
-      if (mockUser && mockUser.password === password) {
-        const { password: _, ...userData } = mockUser;
-        const mockToken = "mock_jwt_token_" + (typeof window !== "undefined" ? btoa(mockUser.email) : "mock");
-        if (typeof window !== "undefined") {
-          localStorage.setItem("access_token", mockToken);
-          localStorage.setItem("wg_token", mockToken);
-          localStorage.setItem("wg_user", JSON.stringify(userData));
-          document.cookie = `wg_token=${encodeURIComponent(mockToken)}; path=/; max-age=86400; SameSite=Lax`;
-          sessionStorage.removeItem("wg_greeting_played");
-        }
-        setUser(userData);
-        setIsLoading(false);
-        return { success: true };
-      }
-
       if (err?.response?.data?.message) {
         setIsLoading(false);
-        return { success: false, error: err.response.data.message };
+        return { success: false, error: Array.isArray(err.response.data.message) ? err.response.data.message.join(", ") : err.response.data.message };
       }
     }
 
     setIsLoading(false);
-    return { success: false, error: "Invalid credentials (Try demo password: Password@123)" };
+    return { success: false, error: "Invalid credentials. Please check your email/ID and password." };
   }, []);
 
   const logout = useCallback(async () => {

@@ -148,7 +148,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const formatRoleLabel = (role?: string): string => {
   if (!role) return "Employee";
-  const normalized = role.toLowerCase().replace(/[- ]/g, "_");
+  let normalized = role.toLowerCase().replace(/[- ]/g, "_");
+  if (normalized === "hr") normalized = "hr_manager";
   return (ROLE_LABELS as Record<string, string>)[normalized] || role;
 };
 

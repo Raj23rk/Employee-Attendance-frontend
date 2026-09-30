@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { FileBarChart2, Download, TrendingUp, Filter, Calendar, RefreshCw, BarChart3, Building2, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -187,11 +187,9 @@ function ReportsContent() {
 
 export function ReportsView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <ReportsContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <ReportsContent />
+    </AppShell>
   );
 }
 export default ReportsView;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { ROLE_LABELS } from "@/lib/constants";
 import { Avatar } from "@/components/ui/Avatar";
@@ -28,8 +28,8 @@ function ProfileContent() {
   const fetchProfile = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await usersService.getMe();
-      const data = res?.data || res;
+      const res: any = await usersService.getMe();
+      const data: any = res?.data || res;
       setProfileData(data);
       if (data) {
         setPhone(data.phone || "");
@@ -237,11 +237,9 @@ function ProfileContent() {
 
 export function ProfileView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <ProfileContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <ProfileContent />
+    </AppShell>
   );
 }
 export default ProfileView;

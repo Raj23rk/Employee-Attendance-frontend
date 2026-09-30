@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   CalendarDays,
@@ -15,6 +15,7 @@ import {
   Heart,
   Baby,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -554,11 +555,9 @@ function LeaveContent() {
 
 export function LeaveView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <LeaveContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <LeaveContent />
+    </AppShell>
   );
 }
 export default LeaveView;

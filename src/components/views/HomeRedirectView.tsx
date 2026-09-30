@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 function HomeRedirectContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -25,10 +25,6 @@ function HomeRedirectContent() {
 }
 
 export function HomeRedirectView() {
-  return (
-    <AuthProvider>
-      <HomeRedirectContent />
-    </AuthProvider>
-  );
+  return <HomeRedirectContent />;
 }
 export default HomeRedirectView;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Clock, Send, Calendar, CheckCircle2, FileText, ChevronLeft, ChevronRight, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -376,11 +376,9 @@ function TimesheetsContent() {
 
 export function TimesheetsView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <TimesheetsContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <TimesheetsContent />
+    </AppShell>
   );
 }
 export default TimesheetsView;

@@ -1,8 +1,10 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from "lucide-react";
-import { ToastContext, type ToastContextType, type ToastItem, type ToastType } from "./ToastContextDef";
+"use client";
 
-export { ToastContext, type ToastContextType, type ToastItem, type ToastType };
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from "lucide-react";
+import { ToastContext, type ToastContextType, type ToastItem, type ToastType, type ToastMethods } from "./ToastContextDef";
+
+export { ToastContext, type ToastContextType, type ToastItem, type ToastType, type ToastMethods };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -32,6 +34,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const warning = useCallback((msg: string, title?: string) => showToast(msg, "warning", title), [showToast]);
   const info = useCallback((msg: string, title?: string) => showToast(msg, "info", title), [showToast]);
 
+  const toastMethods = useMemo<ToastMethods>(
+    () => ({
+      success,
+      error,
+      warning,
+      info,
+      show: showToast,
+    }),
+    [success, error, warning, info, showToast]
+  );
+
   // Expose global window helper for easy integration
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -43,6 +56,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider
       value={{
         toasts,
+        toast: toastMethods,
         showToast,
         removeToast,
         success,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { LifeBuoy, Plus, MessageSquare, CheckCircle2, Clock, Send, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -215,11 +215,9 @@ function HelpdeskContent() {
 
 export function HelpdeskView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <HelpdeskContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <HelpdeskContent />
+    </AppShell>
   );
 }
 export default HelpdeskView;

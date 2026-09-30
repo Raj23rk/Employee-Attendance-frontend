@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   CalendarCheck,
@@ -534,11 +534,9 @@ function AttendanceContent() {
 
 export function AttendanceView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <AttendanceContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <AttendanceContent />
+    </AppShell>
   );
 }
 export default AttendanceView;

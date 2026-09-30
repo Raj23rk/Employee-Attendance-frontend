@@ -1,10 +1,11 @@
 import { MOCK_USERS, MOCK_FULL_EMPLOYEE_LIST } from "./mock-data";
 import { DEFAULT_BRANCHES, ATTENDANCE_POLICY_CONFIG } from "./constants";
+import { safeJsonParse } from "./helpers";
 
 export function getMockApiResponse(url: string, method: string = "GET", data?: any): any | null {
   const cleanUrl = url.replace(/^\/api\/v1/, "").replace(/\?.*$/, "");
   const storedUserJson = typeof window !== "undefined" ? localStorage.getItem("wg_user") : null;
-  const currentUser = storedUserJson ? JSON.parse(storedUserJson) : MOCK_USERS["ceo@wegrow.edu.in"];
+  const currentUser = safeJsonParse(storedUserJson, MOCK_USERS["ceo@wegrow.edu.in"]);
 
   // 1. Current User
   if (cleanUrl === "/users/me" || cleanUrl === "/auth/me") {

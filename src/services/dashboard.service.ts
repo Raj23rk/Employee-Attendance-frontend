@@ -56,7 +56,7 @@ export const dashboardService = {
 
   // 6.9 HR/CEO Download individual employee detailed report URL & method
   getEmployeeReportDownloadUrl(employeeId: string, month?: number, year?: number) {
-    let url = `${apiClient.defaults.baseURL}/dashboard/hr-ceo/employees/${employeeId}/export-report`;
+    const url = `${apiClient.defaults.baseURL}/dashboard/hr-ceo/employees/${employeeId}/export-report`;
     const params = new URLSearchParams();
     if (month) params.append("month", month.toString());
     if (year) params.append("year", year.toString());

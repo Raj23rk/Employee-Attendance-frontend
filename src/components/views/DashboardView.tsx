@@ -29,7 +29,7 @@ import {
   Gift,
   RefreshCw,
 } from "lucide-react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { ROLE_LABELS, type UserRole, formatRoleLabel } from "@/lib/constants";
 import { StatCard } from "@/components/ui/StatCard";
@@ -156,34 +156,34 @@ function DashboardContent() {
     }
   };
 
-  // Dynamic KPI Stats based on live backend data & role
+  // Dynamic KPI Stats based strictly on live backend data & role
   const dynamicStats = [
     {
       label: isCEO ? "Total Active Headcount" : "Present Staff Today",
-      value: overview?.presentCount ?? (overview?.totalEmployees ?? (isCEO ? "156" : "94%")),
+      value: overview?.presentCount ?? overview?.totalEmployees ?? "0",
       icon: Users,
-      trend: "+2.4% vs last mo",
+      trend: overview?.employeeTrend || "Live",
       color: "orange" as const,
     },
     {
       label: isCEO ? "Average Campus Attendance" : "My Logged Hours (Month)",
-      value: overview?.attendanceRate ? `${overview.attendanceRate}%` : (overview?.monthlyHours ? `${overview.monthlyHours}h` : "98.2%"),
+      value: overview?.attendanceRate != null ? `${overview.attendanceRate}%` : (overview?.monthlyHours != null ? `${overview.monthlyHours}h` : "0%"),
       icon: CalendarCheck,
-      trend: "Optimal",
+      trend: "Live",
       color: "green" as const,
     },
     {
       label: isCEO ? "Pending Executive Approvals" : "Pending Leave Requests",
-      value: overview?.pendingLeaves ?? (overview?.pendingApprovals ?? "4"),
+      value: overview?.pendingLeaves ?? overview?.pendingApprovals ?? "0",
       icon: CalendarDays,
-      trend: "Requires Review",
+      trend: "Live",
       color: "blue" as const,
     },
     {
       label: isCEO ? "Disbursed Payroll (MTD)" : "My Available Paid Leaves",
-      value: overview?.disbursedPayroll ? `₹${Number(overview.disbursedPayroll).toLocaleString()}` : (overview?.leaveBalance ?? "14 Days"),
+      value: overview?.disbursedPayroll != null ? `₹${Number(overview.disbursedPayroll).toLocaleString()}` : (overview?.leaveBalance != null ? `${overview.leaveBalance} Days` : "0 Days"),
       icon: Wallet,
-      trend: "On schedule",
+      trend: "Live",
       color: "purple" as const,
     },
   ];
@@ -547,11 +547,9 @@ function DashboardContent() {
 
 export function DashboardView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <DashboardContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <DashboardContent />
+    </AppShell>
   );
 }
 export default DashboardView;

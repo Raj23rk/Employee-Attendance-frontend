@@ -1,24 +1,24 @@
 # WeGrow HR & Payroll Portal — Campus & B-School
 
-This project is built with **Astro** for application/page structure and **React** for interactive UI components (Islands Architecture).
+This project is built with **Next.js 15 (App Router)** and **React 19** with full TypeScript support and Tailwind CSS v4.
 
 ## Architecture
 
-- **Astro** (`src/pages/*.astro`, `src/layouts/*.astro`):
-  - High performance, lightweight SSG/SSR page structure and metadata.
-  - Base and Dashboard layout templates.
-  - Role-aware routing and SEO optimizations.
-- **React Islands** (`src/components/views/*.tsx`, `src/components/ui/*.tsx`, `src/components/layout/*.tsx`):
+- **Next.js 15 App Router** (`src/app/`):
+  - Fast client and server page routing, optimized layout caching, and route transition handling.
+  - Root Layout (`src/app/layout.tsx`) with Google Fonts (Sora & Work Sans), global metadata, and context providers.
+  - Dynamic client-side navigation using `next/link` and `next/navigation`.
+- **React Components** (`src/components/views/*.tsx`, `src/components/ui/*.tsx`, `src/components/layout/*.tsx`):
   - Interactive UI components (Live punch in/out, biometric synchronization, timesheet matrix, modals, live filters).
   - Speech synthesis mascot greeting.
-  - State management via React Auth Context.
-- **Styling**: Tailwind CSS v4 via `@tailwindcss/vite`.
+  - State management via React Auth Context & Toast Context.
+- **Styling**: Tailwind CSS v4 via `@tailwindcss/postcss`.
 
 ## Available Pages / Routes
 
 | Route | Description |
 |---|---|
-| `/` | Portal auto-routing |
+| `/` | Portal auto-routing & authentication redirect |
 | `/login` | Authentication console with Persona demo switcher |
 | `/dashboard` | Interactive Role-Aware KPI Dashboard & Live Mascot |
 | `/attendance` | Biometric Logs, Regularisation Requests, Master Sheet |
@@ -55,7 +55,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the portal.
 npm run build
 ```
 
-### 4. Preview Production Build
+### 4. Start Production Server
 ```bash
-npm run preview
+npm run start
 ```

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Settings, Shield, Bell, Lock, Sliders, Database, Save, RefreshCw, Plus, X, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -299,11 +299,9 @@ function SettingsContent() {
 
 export function SettingsView() {
   return (
-    <AuthProvider>
-      <AppShell>
-        <SettingsContent />
-      </AppShell>
-    </AuthProvider>
+    <AppShell>
+      <SettingsContent />
+    </AppShell>
   );
 }
 export default SettingsView;
