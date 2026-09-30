@@ -5,7 +5,7 @@ import type { User, UserRole } from "@/lib/constants";
 
 import { authService } from "@/services/auth.service";
 import { usersService } from "@/services/users.service";
-import { safeJsonParse } from "@/lib/helpers";
+import { authStorage } from "@/lib/auth-storage";
 import { AuthContext, type AuthContextType } from "./AuthContextDef";
 
 export { AuthContext, type AuthContextType };
@@ -33,9 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           gender: userData.gender,
         };
         setUser(formattedUser);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("wg_user", JSON.stringify(formattedUser));
-        }
+        authStorage.updateUser(formattedUser);
       }
     } catch {
       // Keep existing stored user on transient error or offline
@@ -46,16 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-    const stored = localStorage.getItem("wg_user");
+    const token = authStorage.getToken();
+    const stored = authStorage.getUser();
 
-    if (stored && !user) {
-      const parsed = safeJsonParse<User | null>(stored, null);
-      if (parsed) {
-        setUser(parsed);
-      } else {
-        localStorage.removeItem("wg_user");
-      }
+    if (stored) {
+      setUser((prev) => prev || stored);
     }
 
     if (token) {
@@ -65,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, rememberMe: boolean = false) => {
     setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
 
@@ -92,16 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           gender: apiUser.gender,
         };
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("access_token", token);
-          localStorage.setItem("wg_token", token);
-          if (refreshToken) {
-            localStorage.setItem("refreshToken", refreshToken);
-          }
-          localStorage.setItem("wg_user", JSON.stringify(formattedUser));
-          document.cookie = `wg_token=${encodeURIComponent(token)}; path=/; max-age=86400; SameSite=Lax`;
-          sessionStorage.removeItem("wg_greeting_played");
-        }
+        authStorage.saveSession({
+          token,
+          refreshToken,
+          user: formattedUser,
+          rememberMe,
+        });
+
         setUser(formattedUser);
         setIsLoading(false);
         return { success: true };
@@ -124,15 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ignore
     } finally {
       setUser(null);
+      authStorage.clearSession();
       if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("wg_token");
-        localStorage.removeItem("wg_user");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("last_visited_path");
-        sessionStorage.removeItem("wg_greeting_played");
-        sessionStorage.removeItem("justLoggedIn");
-        document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
         window.location.replace("/login");
       }
     }

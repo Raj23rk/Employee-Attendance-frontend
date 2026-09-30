@@ -40,6 +40,7 @@ import { attendanceService } from "@/services/attendance.service";
 import { engageService } from "@/services/engage.service";
 import { CheckInOutWidget } from "@/components/ui/CheckInOutWidget";
 import { useToast } from "@/context/ToastContext";
+import { authStorage } from "@/lib/auth-storage";
 
 function DashboardContent() {
   const { toast } = useToast();
@@ -113,7 +114,7 @@ function DashboardContent() {
   }, []);
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? (localStorage.getItem("access_token") || localStorage.getItem("wg_token")) : null;
+    const token = authStorage.getToken();
     if (!token) return;
     fetchDashboardData();
   }, [fetchDashboardData]);

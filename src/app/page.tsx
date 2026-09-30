@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { authStorage } from "@/lib/auth-storage";
 
 export default function HomePage() {
   const router = useRouter();
@@ -11,11 +12,11 @@ export default function HomePage() {
   useEffect(() => {
     if (typeof window === "undefined" || isLoading) return;
 
-    const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-    const storedUser = localStorage.getItem("wg_user");
+    const token = authStorage.getToken();
+    const storedUser = authStorage.getUser();
 
     if (token || storedUser || isAuthenticated) {
-      const saved = localStorage.getItem("last_visited_path");
+      const saved = authStorage.getLastVisitedPath();
       const target = saved && saved !== "/login" && saved !== "/" ? saved : "/dashboard";
       router.replace(target);
     } else {

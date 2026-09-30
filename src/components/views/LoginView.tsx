@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { authStorage } from "@/lib/auth-storage";
 import { Logo } from "@/components/ui/Logo";
 import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 
@@ -18,16 +19,11 @@ function LoginForm() {
   // If already logged in, redirect to same screen or dashboard
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-      const storedUser = localStorage.getItem("wg_user");
+      const token = authStorage.getToken();
+      const storedUser = authStorage.getUser();
       if ((token || storedUser) && isAuthenticated) {
-        let target = "/dashboard";
-        try {
-          const saved = localStorage.getItem("last_visited_path");
-          if (saved && saved !== "/login" && saved !== "/") {
-            target = saved;
-          }
-        } catch {}
+        const saved = authStorage.getLastVisitedPath();
+        const target = saved && saved !== "/login" && saved !== "/" ? saved : "/dashboard";
         window.location.replace(target);
       }
     }
@@ -44,19 +40,13 @@ function LoginForm() {
       window.speechSynthesis.resume();
     }
 
-    const result = await login(lookupId, password);
+    const result = await login(lookupId, password, rememberMe);
     setIsLoading(false);
 
     if (result.success) {
       if (typeof window !== "undefined") {
-        sessionStorage.removeItem("wg_greeting_played");
-        let target = "/dashboard";
-        try {
-          const saved = localStorage.getItem("last_visited_path");
-          if (saved && saved !== "/login" && saved !== "/") {
-            target = saved;
-          }
-        } catch {}
+        const saved = authStorage.getLastVisitedPath();
+        const target = saved && saved !== "/login" && saved !== "/" ? saved : "/dashboard";
         window.location.replace(target);
       }
     } else {

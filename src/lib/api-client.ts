@@ -1,4 +1,5 @@
 import axios from "axios";
+import { authStorage } from "./auth-storage";
 
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
@@ -14,11 +15,11 @@ export const apiClient = axios.create({
   timeout: 15000,
 });
 
-// Auto-inject JWT token from localStorage/cookie for authenticated endpoints
+// Auto-inject JWT token from sessionStorage/localStorage/cookie for authenticated endpoints
 apiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
+      const token = authStorage.getToken();
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -36,14 +37,7 @@ apiClient.interceptors.response.use(
       if (typeof window !== "undefined") {
         const reqUrl = error.config?.url || "";
         if (reqUrl.includes("/users/me") || reqUrl.includes("/auth/me")) {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("wg_user");
-          localStorage.removeItem("wg_token");
-          localStorage.removeItem("last_visited_path");
-          sessionStorage.removeItem("wg_greeting_played");
-          sessionStorage.removeItem("justLoggedIn");
-          document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+          authStorage.clearSession();
 
           const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
           if (currentPath !== "/login") {

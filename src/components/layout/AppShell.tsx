@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useAuth } from "@/context/AuthContext";
+import { authStorage } from "@/lib/auth-storage";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -23,13 +24,11 @@ export function AppShell({ children }: AppShellProps) {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;
       if (path && path !== "/login" && path !== "/") {
-        try {
-          localStorage.setItem("last_visited_path", path);
-        } catch {}
+        authStorage.setLastVisitedPath(path);
       }
 
-      const token = localStorage.getItem("access_token") || localStorage.getItem("wg_token");
-      const storedUser = localStorage.getItem("wg_user");
+      const token = authStorage.getToken();
+      const storedUser = authStorage.getUser();
 
       if (!token && !storedUser && !isLoading && !user) {
         window.location.href = "/login";

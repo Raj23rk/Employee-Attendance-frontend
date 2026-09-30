@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api-client";
+import { authStorage } from "@/lib/auth-storage";
 import type { User } from "@/lib/constants";
 
 export interface LoginPayload {
@@ -71,15 +72,7 @@ export const authService = {
     } catch {
       // Safely ignore if token was already invalid or expired on backend
     } finally {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("wg_user");
-        localStorage.removeItem("wg_token");
-        sessionStorage.removeItem("wg_greeting_played");
-        sessionStorage.removeItem("justLoggedIn");
-        document.cookie = "wg_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
-      }
+      authStorage.clearSession();
     }
   },
 
