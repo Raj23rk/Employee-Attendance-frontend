@@ -19,12 +19,16 @@ import {
   Cpu,
   RefreshCw,
   Plus,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { attendanceService } from "@/services/attendance.service";
 import { CheckInOutWidget } from "@/components/ui/CheckInOutWidget";
 import { useToast } from "@/context/ToastContext";
+import { formatTime } from "@/lib/helpers";
+import { generateBranchAttendancePdf } from "@/lib/pdf-reports";
+
 
 function AttendanceContent() {
   const { toast } = useToast();
@@ -142,10 +146,63 @@ function AttendanceContent() {
     }
   };
 
-  // CSV Export
-  const handleExportCsv = () => {
-    const now = new Date();
-    window.open(attendanceService.getExportUrl(now.getMonth() + 1, now.getFullYear()), "_blank");
+  // PDF Attendance Master Report Export
+  const handleExportPdf = () => {
+    toast.info("Generating PDF Attendance Master Report...");
+    if (activeTab === "company" && dailySheet.length > 0) {
+      const formatted = dailySheet.map((item: any, i: number) => ({
+        id: item.employeeId || item.id || `emp-${i}`,
+        name: item.name || item.employeeName || "Staff",
+        employeeId: item.employeeId || item.id || `WG-${i + 1}`,
+        department: item.department || "General",
+        branch: item.branch || "Main Campus",
+        role: "employee" as any,
+        todayAttendance: {
+          isCheckedIn: item.status === "PRESENT" && (!item.checkOutTime || item.checkOutTime === "--:--"),
+          checkInTime: item.checkInTime,
+          checkOutTime: item.checkOutTime,
+          status: item.status || "PRESENT",
+        },
+      }));
+      generateBranchAttendancePdf(formatted as any, "HR Master Daily Register");
+    } else if (activeTab === "team" && teamToday.length > 0) {
+      const formatted = teamToday.map((member: any, i: number) => ({
+        id: member._id || member.id || `team-${i}`,
+        name: member.name || member.userName || "Staff",
+        employeeId: member.employeeId || `STAFF-${i + 1}`,
+        department: member.department || "Campus Operations",
+        branch: member.branch || "Assigned Campus",
+        role: "employee" as any,
+        todayAttendance: {
+          isCheckedIn: member.status === "PRESENT" && (!member.checkOutTime || member.checkOutTime === "--:--"),
+          checkInTime: member.checkInTime || member.checkIn,
+          checkOutTime: member.checkOutTime || member.checkOut,
+          status: member.status || "PRESENT",
+        },
+      }));
+      generateBranchAttendancePdf(formatted as any, "Team Attendance Today");
+    } else {
+      const formatted = myCalendar.map((row: any, i: number) => ({
+        id: row._id || row.id || `row-${i}`,
+        name: user?.name || "Employee",
+        employeeId: user?.employeeId || "WG-STAFF",
+        department: user?.department || "General",
+        branch: user?.branch || "Main Campus",
+        dateOfJoining: row.date,
+        role: (user?.role?.toLowerCase() as any) || "employee",
+        todayAttendance: {
+          isCheckedIn: row.status === "PRESENT" && (!row.checkOutTime || row.checkOutTime === "--:--"),
+          checkInTime: row.checkInTime || row.checkIn,
+          checkOutTime: row.checkOutTime || row.checkOut,
+          status: row.status || "PRESENT",
+        },
+      }));
+      generateBranchAttendancePdf(
+        formatted as any,
+        `${user?.name || "Staff"} Attendance History`,
+        { reportTitle: "Monthly Biometric Attendance History" }
+      );
+    }
   };
 
   return (
@@ -187,17 +244,15 @@ function AttendanceContent() {
             <span>Apply Regularisation</span>
           </Button>
 
-          {(isHR || isCEO) && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="gap-2"
-              onClick={handleExportCsv}
-            >
-              <Download className="h-4 w-4" />
-              <span>Export CSV</span>
-            </Button>
-          )}
+          <Button
+            variant="primary"
+            size="sm"
+            className="gap-2 shadow-sm"
+            onClick={handleExportPdf}
+          >
+            <Printer className="h-4 w-4" />
+            <span>Print / Save PDF Report</span>
+          </Button>
         </div>
       </div>
 
@@ -276,8 +331,8 @@ function AttendanceContent() {
                   {myCalendar.map((row: any, i) => (
                     <tr key={i} className="hover:bg-slate-50/50">
                       <td className="py-3 px-3 font-semibold text-slate-900">{row.date}</td>
-                      <td className="py-3 px-3">{row.checkInTime || row.checkIn || "--"}</td>
-                      <td className="py-3 px-3">{row.checkOutTime || row.checkOut || "--"}</td>
+                      <td className="py-3 px-3">{row.checkInTime || row.checkIn ? formatTime(row.checkInTime || row.checkIn) : "--"}</td>
+                      <td className="py-3 px-3">{row.checkOutTime || row.checkOut ? formatTime(row.checkOutTime || row.checkOut) : "--"}</td>
                       <td className="py-3 px-3">
                         <span
                           className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${
@@ -384,8 +439,8 @@ function AttendanceContent() {
                     <tr key={i} className="hover:bg-slate-50/50">
                       <td className="py-3 px-3 font-bold text-slate-900">{member.name || member.userName}</td>
                       <td className="py-3 px-3 text-slate-500">{member.shift || "09:00 AM - 06:00 PM"}</td>
-                      <td className="py-3 px-3">{member.checkInTime || member.checkIn || "--"}</td>
-                      <td className="py-3 px-3">{member.checkOutTime || member.checkOut || "--"}</td>
+                      <td className="py-3 px-3">{member.checkInTime || member.checkIn ? formatTime(member.checkInTime || member.checkIn) : "--"}</td>
+                      <td className="py-3 px-3">{member.checkOutTime || member.checkOut ? formatTime(member.checkOutTime || member.checkOut) : "--"}</td>
                       <td className="py-3 px-3">
                         <span className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-bold ${
                           member.status === "PRESENT" || member.status === "Present" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
@@ -432,7 +487,9 @@ function AttendanceContent() {
                         {item.status || "PRESENT"}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-slate-500">{item.checkInTime || "09:00"} - {item.checkOutTime || "18:00"}</td>
+                    <td className="py-3 px-3 text-slate-500">
+                      {item.checkInTime ? formatTime(item.checkInTime) : "09:40 AM"} - {item.checkOutTime ? formatTime(item.checkOutTime) : "07:00 PM"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

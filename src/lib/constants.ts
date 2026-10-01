@@ -88,6 +88,7 @@ export interface Branch {
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  employeeCount?: number;
 }
 
 export const DEFAULT_BRANCHES: Branch[] = [];

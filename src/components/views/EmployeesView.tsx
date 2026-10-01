@@ -50,6 +50,10 @@ import {
   type BankDetails,
   formatRoleLabel,
 } from "@/lib/constants";
+import { formatTime } from "@/lib/helpers";
+import { generateBranchAttendancePdf, generateEmployeeIndividualPdf } from "@/lib/pdf-reports";
+
+
 
 
 function EmployeesContent() {
@@ -125,6 +129,7 @@ function EmployeesContent() {
           name: b.name || `Branch ${i + 1}`,
           city: b.city || "Campus",
           code: b.code || `BR-${i + 1}`,
+          employeeCount: typeof b.employeeCount === "number" ? b.employeeCount : undefined,
         }));
         setBranches(formatted);
         if (formatted.length > 0) {
@@ -191,27 +196,33 @@ function EmployeesContent() {
       const data = res?.data || res;
       if (Array.isArray(data)) {
         const formatted = data.map((emp: any) => {
-          const isCheckedIn =
-            emp.todayStatus === "PRESENT" ||
-            emp.todayStatus === "LATE" ||
-            (emp.checkin && emp.checkin !== "-" && emp.checkin !== "--:--") ||
-            !!emp.todayAttendance?.isCheckedIn;
+          const rawCheckin =
+            emp.rawCheckin ||
+            emp.rawCheckInTime ||
+            emp.todayAttendance?.rawCheckInTime ||
+            emp.todayAttendance?.checkInTime ||
+            emp.checkin;
 
-          const checkInTime =
-            emp.checkin && emp.checkin !== "-"
-              ? emp.checkin
-              : emp.todayAttendance?.checkInTime || "--:--";
+          const rawCheckout =
+            emp.rawCheckout ||
+            emp.rawCheckOutTime ||
+            emp.todayAttendance?.rawCheckOutTime ||
+            emp.todayAttendance?.checkOutTime ||
+            emp.checkout;
 
-          const checkOutTime =
-            emp.checkout && emp.checkout !== "-"
-              ? emp.checkout
-              : emp.todayAttendance?.checkOutTime || "--:--";
+          const hasCheckIn = !!rawCheckin && rawCheckin !== "-" && rawCheckin !== "--:--";
+          const hasCheckOut = !!rawCheckout && rawCheckout !== "-" && rawCheckout !== "--:--";
+
+          const isCheckedIn = hasCheckIn && !hasCheckOut;
+
+          const checkInTime = hasCheckIn ? rawCheckin : "--:--";
+          const checkOutTime = hasCheckOut ? rawCheckout : "--:--";
 
           const status =
             emp.todayStatus ||
             emp.status ||
             emp.todayAttendance?.status ||
-            (isCheckedIn ? "PRESENT" : "ABSENT");
+            (hasCheckIn ? "PRESENT" : "ABSENT");
 
           return {
             ...emp,
@@ -230,6 +241,7 @@ function EmployeesContent() {
             isActive: emp.isActive !== undefined ? emp.isActive : true,
             todayAttendance: {
               isCheckedIn,
+              hasCheckOut,
               checkInTime,
               checkOutTime,
               status,
@@ -456,60 +468,14 @@ function EmployeesContent() {
     }
   };
 
-  // Download Branch Wise CSV Report
+  // Download / Print Branch Wise PDF Attendance Master Report
   const handleDownloadBranchReport = () => {
-    const branchLabel = selectedBranchFilter === "all" ? "All-Branches" : selectedBranchFilter.replace(/\s+/g, "_");
-    const headers = [
-      "Employee ID",
-      "Full Name",
-      "Official Email",
-      "Phone",
-      "Department",
-      "Designation",
-      "Role",
-      "Date of Joining",
-      "Branch Name",
-      "Bank Account Number",
-      "Bank Name",
-      "IFSC Code",
-      "Attendance Status",
-      "Today Check-In",
-      "Today Check-Out",
-      "Monthly Late Punches",
-      "Permission Hours Used",
-      "LOP Days",
-    ];
-
-    const rows = filteredEmployees.map((emp) => [
-      emp.employeeId || "",
-      `"${emp.name || ""}"`,
-      emp.email || "",
-      emp.phone || "",
-      `"${emp.department || ""}"`,
-      `"${emp.designation || ""}"`,
-      emp.role || "",
-      emp.dateOfJoining || "",
-      `"${emp.branch || ""}"`,
-      `'${emp.bankDetails?.accountNumber || ""}`,
-      `"${emp.bankDetails?.bankName || ""}"`,
-      emp.bankDetails?.ifscCode || "",
-      emp.todayAttendance?.status || "PRESENT",
-      emp.todayAttendance?.checkInTime || "--:--",
-      emp.todayAttendance?.checkOutTime || "--:--",
-      emp.monthlyStats?.lateCount ?? 0,
-      emp.monthlyStats?.permissionHoursUsed ?? 0,
-      emp.monthlyStats?.lopDays ?? 0,
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Employee_Attendance_Report_${branchLabel}_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Branch report exported successfully!");
+    if (filteredEmployees.length === 0) {
+      toast.warning("No employees found in the current filter to export.");
+      return;
+    }
+    toast.info("Opening PDF Attendance Register...");
+    generateBranchAttendancePdf(filteredEmployees, selectedBranchFilter);
   };
 
   // Open Employee Popup with live backend details
@@ -527,76 +493,18 @@ function EmployeesContent() {
     }
   };
 
-  // Download Individual Employee Dossier / Statement
+  // Download / Print Individual Employee Month-by-Day PDF Statement
   const handleDownloadIndividualReport = async (emp: User) => {
+    toast.info(`Generating Monthly Attendance PDF Report for ${emp.name}...`);
     try {
-      const blob = await dashboardService.exportEmployeeReport(emp.id || emp.employeeId);
-      const url = URL.createObjectURL(new Blob([blob], { type: "text/csv;charset=utf-8" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Employee_Report_${emp.employeeId}_${emp.name.replace(/\s+/g, "_")}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast.success(`Report downloaded for ${emp.name}`);
+      const res = await dashboardService.getEmployeePopupDetails(emp.id || (emp as any)._id || emp.employeeId);
+      const popupData = res?.data || res;
+      generateEmployeeIndividualPdf({
+        ...emp,
+        ...(popupData && typeof popupData === "object" ? popupData : {}),
+      });
     } catch {
-      // Fallback: Generate comprehensive dossier text document
-      const content = `
-===================================================================
-WEGROW EMPLOYEE DOSSIER & COMPLIANCE REPORT
-===================================================================
-Employee ID       : ${emp.employeeId}
-Full Name         : ${emp.name}
-Role              : ${formatRoleLabel(emp.role)}
-Designation       : ${emp.designation || "Staff Member"}
-Department        : ${emp.department}
-Assigned Branch   : ${emp.branch || "Chennai Main Campus"}
-Date of Joining   : ${emp.dateOfJoining || "2023-01-15"}
-Contact Email     : ${emp.email}
-Phone Number      : ${emp.phone || "+91 98765 43210"}
-Account Status    : ${emp.isActive ? "ACTIVE" : "INACTIVE"}
-
--------------------------------------------------------------------
-BANKING & PAYROLL DETAILS
--------------------------------------------------------------------
-Account Holder    : ${emp.bankDetails?.accountHolderName || emp.name}
-Account Number    : ${emp.bankDetails?.accountNumber || "N/A"}
-Bank Name         : ${emp.bankDetails?.bankName || "HDFC Bank"}
-IFSC Code         : ${emp.bankDetails?.ifscCode || "HDFC0001234"}
-Branch Location   : ${emp.bankDetails?.branchName || "Main Branch"}
-UPI ID            : ${emp.bankDetails?.upiId || "N/A"}
-
--------------------------------------------------------------------
-MONTHLY SHIFT & ATTENDANCE POLICY AUDIT
--------------------------------------------------------------------
-Standard Shift    : 09:40 AM to 07:00 PM (Grace Time: 09:45 AM)
-Today Check-In    : ${emp.todayAttendance?.checkInTime || "--:--"}
-Today Check-Out   : ${emp.todayAttendance?.checkOutTime || "--:--"}
-Today Status      : ${emp.todayAttendance?.status || "PRESENT"}
-Late Arrivals     : ${emp.monthlyStats?.lateCount ?? 0} / 3 Allowed
-Permission Used   : ${emp.monthlyStats?.permissionHoursUsed ?? 0}h / 2.0h Max
-Casual Leaves Used: ${emp.monthlyStats?.casualLeavesUsed ?? 0} (1 CL/month quota)
-Loss of Pay (LOP) : ${emp.monthlyStats?.lopDays ?? 0} Day(s)
-
-Policy Penalties Applied:
-- Late Arrival Penalty : ${(emp.monthlyStats?.lateCount ?? 0) >= 4 ? "Half-Day Salary Deduction (Exceeded 3 Lates)" : "None (Within quota)"}
-- Permission Penalty   : ${(emp.monthlyStats?.permissionHoursUsed ?? 0) > 2 ? "Half-Day Salary Deduction (Exceeded 2 Hours)" : "None (Within quota)"}
-- Medical Leave Check  : Verified with Doctor Certificate
-===================================================================
-Generated on: ${new Date().toLocaleString()}
-`;
-
-      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Employee_Dossier_${emp.employeeId}_${emp.name.replace(/\s+/g, "_")}.txt`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast.success(`Dossier downloaded for ${emp.name}`);
+      generateEmployeeIndividualPdf(emp);
     }
   };
 
@@ -635,11 +543,11 @@ Generated on: ${new Date().toLocaleString()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="gap-2 text-[#EA6118] border-orange-200 bg-orange-50/50 hover:bg-orange-100/60"
             onClick={handleDownloadBranchReport}
           >
-            <Download className="h-4 w-4" />
-            <span>Download Branch Report (CSV)</span>
+            <Printer className="h-4 w-4" />
+            <span>Print / Save PDF Report</span>
           </Button>
 
           <Button
@@ -748,9 +656,24 @@ Generated on: ${new Date().toLocaleString()}
             {branches.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {branches.map((b, bIdx) => {
-                  const branchStaffCount = employees.filter((e) =>
-                    e.branch?.toLowerCase().includes(b.name.toLowerCase()) || e.branch?.toLowerCase().includes(b.city.toLowerCase())
-                  ).length;
+                  const cleanBranchName = (b.name || "").trim().toLowerCase();
+                  const cleanBranchCode = (b.code || "").trim().toLowerCase();
+                  const cleanBranchId = (b.id || (b as any)._id || "").trim().toLowerCase();
+
+                  const branchStaffCount =
+                    typeof b.employeeCount === "number"
+                      ? b.employeeCount
+                      : employees.filter((e) => {
+                          if (!e.branch) return false;
+                          const eb = e.branch.trim().toLowerCase();
+                          return (
+                            eb === cleanBranchName ||
+                            (cleanBranchId && eb === cleanBranchId) ||
+                            (cleanBranchCode && eb === cleanBranchCode) ||
+                            eb.includes(cleanBranchName) ||
+                            cleanBranchName.includes(eb)
+                          );
+                        }).length;
 
                   return (
                     <div
@@ -923,8 +846,19 @@ Generated on: ${new Date().toLocaleString()}
                     const branchName = member.branch || "Main Campus / HQ";
                     const doj = member.dateOfJoining || "2023-01-15";
                     const isCheckedIn = member.todayAttendance?.isCheckedIn;
-                    const inTime = member.todayAttendance?.checkInTime || "--:--";
-                    const outTime = member.todayAttendance?.checkOutTime || "--:--";
+                    const hasCheckOut =
+                      (member.todayAttendance as any)?.hasCheckOut ||
+                      (member.todayAttendance?.checkOutTime &&
+                        member.todayAttendance.checkOutTime !== "--:--" &&
+                        member.todayAttendance.checkOutTime !== "-");
+                    const inTime =
+                      member.todayAttendance?.checkInTime && member.todayAttendance.checkInTime !== "--:--"
+                        ? formatTime(member.todayAttendance.checkInTime)
+                        : "--:--";
+                    const outTime =
+                      member.todayAttendance?.checkOutTime && member.todayAttendance.checkOutTime !== "--:--"
+                        ? formatTime(member.todayAttendance.checkOutTime)
+                        : "--:--";
                     const status = member.todayAttendance?.status || "PRESENT";
                     const lateCount = member.monthlyStats?.lateCount ?? 0;
 
@@ -974,6 +908,8 @@ Generated on: ${new Date().toLocaleString()}
                                     ? status === "LATE"
                                       ? "bg-amber-100 text-amber-800"
                                       : "bg-emerald-100 text-emerald-800"
+                                    : hasCheckOut
+                                    ? "bg-slate-100 text-slate-700 border border-slate-200"
                                     : status === "ON_LEAVE"
                                     ? "bg-orange-100 text-orange-800"
                                     : "bg-slate-100 text-slate-600"
@@ -983,6 +919,8 @@ Generated on: ${new Date().toLocaleString()}
                                   ? status === "LATE"
                                     ? "Late Punch"
                                     : "Checked In"
+                                  : hasCheckOut
+                                  ? "Shift Ended"
                                   : status === "ON_LEAVE"
                                   ? "On Leave"
                                   : "Shift Out"}

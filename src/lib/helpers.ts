@@ -39,11 +39,72 @@ export function formatDate(date: Date | string): string {
   });
 }
 
-/** Format time to HH:MM AM/PM */
-export function formatTime(date: Date | string): string {
-  return new Date(date).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+/** Format time to HH:MM AM/PM in IST */
+export function formatTime(date: Date | string | number | null | undefined): string {
+  if (!date) return "--:--";
+  try {
+    if (typeof date === "number") {
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        });
+      }
+    }
+
+    if (typeof date === "string") {
+      const str = date.trim();
+      if (str === "-" || str === "--:--" || !str) return "--:--";
+
+      // If it's an ISO timestamp or date-containing string (e.g. 2026-10-01T03:53:00.000Z)
+      if (str.includes("T") || str.endsWith("Z") || /^\d{4}-\d{2}-\d{2}/.test(str)) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Kolkata",
+          });
+        }
+      }
+
+      // If already formatted like "09:41 AM"
+      if (str.includes("AM") || str.includes("PM")) {
+        return str;
+      }
+
+      // Try general Date parse
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        });
+      }
+
+      return str;
+    }
+
+    if (date instanceof Date) {
+      if (isNaN(date.getTime())) return "--:--";
+      return date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      });
+    }
+
+    return String(date);
+  } catch {
+    return String(date);
+  }
 }
+
+

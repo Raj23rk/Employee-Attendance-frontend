@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Play,
   Square,
@@ -22,6 +22,7 @@ import { attendanceService, type PunchPayload } from "@/services/attendance.serv
 import { organizationService } from "@/services/organization.service";
 import { ATTENDANCE_POLICY_CONFIG, type Branch } from "@/lib/constants";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 
 interface CheckInOutWidgetProps {
   variant?: "banner" | "card";
@@ -35,6 +36,7 @@ export function CheckInOutWidget({
   className = "",
 }: CheckInOutWidgetProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
@@ -53,7 +55,39 @@ export function CheckInOutWidget({
     nearestBranch: Branch | null;
   } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<string>("");
+
+  // Employee's database assigned branch resolution
+  const userAssignedBranchName = user?.branch?.trim() || "";
+
+  const activeBranch = useMemo(() => {
+    const matchedUserBranch = branches.find((b) => {
+      if (!userAssignedBranchName) return false;
+      const cleanUserBr = userAssignedBranchName.toLowerCase();
+      return (
+        b.id.toLowerCase() === cleanUserBr ||
+        b.name.toLowerCase() === cleanUserBr ||
+        b.name.toLowerCase().includes(cleanUserBr) ||
+        cleanUserBr.includes(b.name.toLowerCase()) ||
+        (b.code && b.code.toLowerCase() === cleanUserBr) ||
+        (b.city && b.city.toLowerCase() === cleanUserBr)
+      );
+    });
+
+    return matchedUserBranch || (userAssignedBranchName ? {
+      id: "assigned-branch",
+      name: userAssignedBranchName,
+      city: "Campus",
+      code: "ASSIGNED",
+      latitude: 9.4291,
+      longitude: 77.8231,
+      address: userAssignedBranchName,
+      radiusMeters: 500,
+    } : (branches.length > 0 ? branches[0] : null));
+  }, [branches, userAssignedBranchName]);
+
+  const displayBranchName = useMemo(() => {
+    return activeBranch?.name || userAssignedBranchName || "WeGrow Skill Campus – Sivakasi Branch 1.0";
+  }, [activeBranch, userAssignedBranchName]);
 
   useEffect(() => {
     organizationService.getBranches().then((res) => {
@@ -67,9 +101,6 @@ export function CheckInOutWidget({
           code: b.code || `BR-${i + 1}`,
         }));
         setBranches(formatted);
-        if (formatted[0]?.id) {
-          setSelectedBranch(formatted[0].id);
-        }
       }
     }).catch(() => {});
   }, []);
@@ -87,6 +118,7 @@ export function CheckInOutWidget({
   });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const checkInTimestampRef = useRef<number | null>(null);
 
   // Helper to calculate distance between two coordinates in meters (Haversine Formula)
   const calculateDistanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -102,7 +134,7 @@ export function CheckInOutWidget({
     return R * c;
   };
 
-  // Find user geolocation
+  // Find user geolocation anchored to employee's assigned branch
   const detectLocation = useCallback(() => {
     if (typeof window === "undefined" || !navigator.geolocation) return;
     setIsLocating(true);
@@ -110,44 +142,30 @@ export function CheckInOutWidget({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
-        let matchedBranch: Branch | null = null;
-        let minDistance = Infinity;
-
-        branches.forEach((b) => {
-          const dist = calculateDistanceMeters(latitude, longitude, b.latitude, b.longitude);
-          if (dist < minDistance) {
-            minDistance = dist;
-            matchedBranch = b;
-          }
-        });
-
-        const activeBranch = matchedBranch || (branches.length > 0 ? branches[0] : null);
         setUserLocation({
           latitude,
           longitude,
           accuracy: Math.round(accuracy),
-          address: activeBranch ? `${activeBranch.name} • ${activeBranch.city} (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E)` : `Current Location (${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°)`,
+          address: activeBranch
+            ? `${activeBranch.name} • ${activeBranch.city} (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E)`
+            : `${displayBranchName} (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E)`,
           nearestBranch: activeBranch,
         });
-        if (activeBranch) {
-          setSelectedBranch(activeBranch.id);
-        }
         setIsLocating(false);
       },
       () => {
-        const activeBranch = branches.length > 0 ? branches[0] : null;
         setUserLocation({
-          latitude: activeBranch?.latitude || 13.0102,
-          longitude: activeBranch?.longitude || 80.2158,
+          latitude: activeBranch?.latitude || 9.4291,
+          longitude: activeBranch?.longitude || 77.8231,
           accuracy: 10,
-          address: activeBranch ? `${activeBranch.name} (${activeBranch.city})` : "Main Campus",
+          address: activeBranch ? `${activeBranch.name} (${activeBranch.city})` : displayBranchName,
           nearestBranch: activeBranch,
         });
         setIsLocating(false);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, [branches]);
+  }, [activeBranch, displayBranchName]);
 
   useEffect(() => {
     detectLocation();
@@ -162,51 +180,149 @@ export function CheckInOutWidget({
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Format UTC ISO date / timestamp into IST (Asia/Kolkata)
+  const formatTimeOnly = (isoOrTimeString?: string | number | null) => {
+    if (!isoOrTimeString) return "--:--";
+    try {
+      if (typeof isoOrTimeString === "number") {
+        const d = new Date(isoOrTimeString);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Kolkata",
+          });
+        }
+      }
+
+      const str = String(isoOrTimeString).trim();
+
+      // If already a simple time string like "09:41 AM" (without ISO/Date components)
+      if (
+        !str.includes("T") &&
+        !str.includes("Z") &&
+        !str.includes("-") &&
+        (str.includes("AM") || str.includes("PM"))
+      ) {
+        return str;
+      }
+
+      const date = new Date(str);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        });
+      }
+      return str;
+    } catch {
+      return String(isoOrTimeString);
+    }
+  };
+
   // Sync with API & localStorage
   const syncTodayStatus = useCallback(async () => {
     const todayStr = new Date().toISOString().split("T")[0];
 
+    // 1. Initial immediate restore from local storage
     if (typeof window !== "undefined") {
       const storedDate = localStorage.getItem("wg_punch_date");
       const storedInTime = localStorage.getItem("wg_checkin_time");
+      const storedTimestamp = localStorage.getItem("wg_checkin_timestamp");
       const storedOutTime = localStorage.getItem("wg_checkout_time");
 
       if (storedDate === todayStr) {
         if (storedInTime && !storedOutTime) {
           setIsCheckedIn(true);
           setCheckInTime(storedInTime);
-          const start = new Date(storedInTime).getTime();
-          const now = Date.now();
-          setElapsedSeconds(Math.max(0, Math.floor((now - start) / 1000)));
+          const startMs = storedTimestamp ? Number(storedTimestamp) : new Date(storedInTime).getTime();
+          if (!isNaN(startMs) && startMs > 0) {
+            checkInTimestampRef.current = startMs;
+            setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+          }
         } else if (storedOutTime) {
           setIsCheckedIn(false);
           setCheckInTime(storedInTime);
           setCheckOutTime(storedOutTime);
+          checkInTimestampRef.current = null;
         }
       }
     }
 
+    // 2. Fetch authoritative status from backend
     try {
       const response = await attendanceService.getTodayStatus();
       const data = response?.data || response;
       if (data) {
-        if (data.checkInTime && !data.checkOutTime) {
-          setIsCheckedIn(true);
-          setCheckInTime(data.checkInTime);
-          setCheckOutTime(null);
-          const start = new Date(data.checkInTime).getTime();
-          if (!isNaN(start)) {
-            setElapsedSeconds(Math.max(0, Math.floor((Date.now() - start) / 1000)));
+        const checked =
+          data.checkedIn === true ||
+          data.isCheckedIn === true ||
+          data.status === "PRESENT" ||
+          data.status === "LATE";
+
+        // Prioritize ISO UTC timestamp from rawCheckInTime or record so IST conversion is exact (09:41 AM)
+        const rawIn =
+          data.rawCheckInTime ||
+          data.record?.checkInTime ||
+          (typeof data.startedAt === "number"
+            ? new Date(data.startedAt).toISOString()
+            : null) ||
+          data.checkInTime;
+
+        const rawOut =
+          data.rawCheckOutTime ||
+          data.record?.checkOutTime ||
+          data.checkOutTime;
+
+        let startMs: number | null = null;
+        if (typeof data.startedAt === "number" && data.startedAt > 0) {
+          startMs = data.startedAt;
+        } else if (rawIn) {
+          const parsed = new Date(rawIn).getTime();
+          if (!isNaN(parsed) && parsed > 0) {
+            startMs = parsed;
           }
-        } else if (data.checkOutTime) {
-          setIsCheckedIn(false);
-          setCheckInTime(data.checkInTime || null);
-          setCheckOutTime(data.checkOutTime);
         }
+
+        if (checked && !rawOut) {
+          setIsCheckedIn(true);
+          setCheckInTime(rawIn);
+          setCheckOutTime(null);
+          if (startMs) {
+            checkInTimestampRef.current = startMs;
+            setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+            if (typeof window !== "undefined") {
+              localStorage.setItem("wg_punch_date", todayStr);
+              localStorage.setItem("wg_checkin_time", rawIn);
+              localStorage.setItem("wg_checkin_timestamp", String(startMs));
+              localStorage.removeItem("wg_checkout_time");
+            }
+          }
+        } else if (rawOut || (!checked && rawIn)) {
+          setIsCheckedIn(false);
+          setCheckInTime(rawIn || null);
+          setCheckOutTime(rawOut || null);
+          checkInTimestampRef.current = null;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("wg_punch_date", todayStr);
+            if (rawIn) localStorage.setItem("wg_checkin_time", rawIn);
+            if (rawOut) localStorage.setItem("wg_checkout_time", rawOut);
+          }
+        } else {
+          setIsCheckedIn(false);
+          setCheckInTime(null);
+          setCheckOutTime(null);
+          checkInTimestampRef.current = null;
+          setElapsedSeconds(0);
+        }
+
         if (onStatusChange) onStatusChange(data);
       }
     } catch {
-      // Offline fallback
+      // Offline fallback is handled from localStorage
     }
   }, [onStatusChange]);
 
@@ -214,18 +330,25 @@ export function CheckInOutWidget({
     syncTodayStatus();
   }, [syncTodayStatus]);
 
-  // Live seconds timer
+  // Live continuous seconds timer - accurate elapsed time since morning check-in
   useEffect(() => {
-    if (isCheckedIn && checkInTime) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        const start = new Date(checkInTime).getTime();
-        if (!isNaN(start)) {
+    if (isCheckedIn) {
+      const updateTimer = () => {
+        const start = checkInTimestampRef.current;
+        if (start && start > 0) {
           setElapsedSeconds(Math.max(0, Math.floor((Date.now() - start) / 1000)));
-        } else {
-          setElapsedSeconds((prev) => prev + 1);
+        } else if (checkInTime) {
+          const parsed = new Date(checkInTime).getTime();
+          if (!isNaN(parsed) && parsed > 0) {
+            checkInTimestampRef.current = parsed;
+            setElapsedSeconds(Math.max(0, Math.floor((Date.now() - parsed) / 1000)));
+          }
         }
-      }, 1000);
+      };
+
+      updateTimer();
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(updateTimer, 1000);
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -243,6 +366,7 @@ export function CheckInOutWidget({
     setStatusMessage(null);
     const now = new Date();
     const nowIso = now.toISOString();
+    const nowMs = now.getTime();
     const todayStr = nowIso.split("T")[0];
 
     // Check 9:40 AM standard & 9:45 AM grace time
@@ -266,43 +390,60 @@ export function CheckInOutWidget({
     }
 
     try {
-      const activeBranchObj = branches.find((b) => b.id === selectedBranch) || (branches.length > 0 ? branches[0] : null);
+      const targetBranchId = activeBranch?.id || "assigned-branch";
+      const targetBranchName = activeBranch?.name || userAssignedBranchName || "Main Campus";
       const payload: PunchPayload = {
         workMode,
-        latitude: userLocation?.latitude || activeBranchObj?.latitude,
-        longitude: userLocation?.longitude || activeBranchObj?.longitude,
+        latitude: userLocation?.latitude || activeBranch?.latitude,
+        longitude: userLocation?.longitude || activeBranch?.longitude,
         accuracy: userLocation?.accuracy || 10,
-        branchId: activeBranchObj?.id,
-        branchName: activeBranchObj?.name || "Main Campus",
-        locationAddress: userLocation?.address || activeBranchObj?.address || "Main Campus",
-        notes: `Checked in at ${activeBranchObj?.name || "Main Campus"} (${workMode.toUpperCase()})${lateNotice}`,
+        branchId: targetBranchId,
+        branchName: targetBranchName,
+        locationAddress: userLocation?.address || activeBranch?.address || targetBranchName,
+        notes: `Checked in at ${targetBranchName} (${workMode.toUpperCase()})${lateNotice}`,
       };
 
-      await attendanceService.checkIn(payload);
+      const res = await attendanceService.checkIn(payload);
+      const resData = res?.data || res;
+
+      const rawIn =
+        resData?.rawCheckInTime ||
+        resData?.record?.checkInTime ||
+        (typeof resData?.startedAt === "number"
+          ? new Date(resData.startedAt).toISOString()
+          : nowIso);
+      const startMs =
+        typeof resData?.startedAt === "number"
+          ? resData.startedAt
+          : new Date(rawIn).getTime() || nowMs;
 
       setIsCheckedIn(true);
-      setCheckInTime(nowIso);
+      setCheckInTime(rawIn);
       setCheckOutTime(null);
-      setElapsedSeconds(0);
+      checkInTimestampRef.current = startMs;
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
 
       if (typeof window !== "undefined") {
         localStorage.setItem("wg_punch_date", todayStr);
-        localStorage.setItem("wg_checkin_time", nowIso);
+        localStorage.setItem("wg_checkin_time", rawIn);
+        localStorage.setItem("wg_checkin_timestamp", String(startMs));
         localStorage.removeItem("wg_checkout_time");
       }
 
-      setStatusMessage(`Checked in successfully at ${activeBranchObj.name}!${lateNotice}`);
+      setStatusMessage(`Checked in successfully at ${targetBranchName}!${lateNotice}`);
       setTimeout(() => setStatusMessage(null), 6000);
-      if (onStatusChange) onStatusChange({ isCheckedIn: true, checkInTime: nowIso });
+      if (onStatusChange) onStatusChange({ isCheckedIn: true, checkInTime: rawIn, rawCheckInTime: rawIn, startedAt: startMs });
     } catch {
       setIsCheckedIn(true);
       setCheckInTime(nowIso);
       setCheckOutTime(null);
+      checkInTimestampRef.current = nowMs;
       setElapsedSeconds(0);
 
       if (typeof window !== "undefined") {
         localStorage.setItem("wg_punch_date", todayStr);
         localStorage.setItem("wg_checkin_time", nowIso);
+        localStorage.setItem("wg_checkin_timestamp", String(nowMs));
         localStorage.removeItem("wg_checkout_time");
       }
       setStatusMessage(`Checked in (Saved locally)${lateNotice}`);
@@ -329,32 +470,41 @@ export function CheckInOutWidget({
     const todayStr = nowIso.split("T")[0];
 
     try {
-      const activeBranchObj = branches.find((b) => b.id === selectedBranch) || (branches.length > 0 ? branches[0] : null);
+      const targetBranchId = activeBranch?.id || "assigned-branch";
+      const targetBranchName = activeBranch?.name || userAssignedBranchName || "Main Campus";
       const payload: PunchPayload = {
         workMode,
-        latitude: userLocation?.latitude || activeBranchObj?.latitude,
-        longitude: userLocation?.longitude || activeBranchObj?.longitude,
-        branchId: activeBranchObj?.id,
-        branchName: activeBranchObj?.name || "Main Campus",
-        notes: `Checked out via web portal at ${activeBranchObj?.name || "Main Campus"}`,
+        latitude: userLocation?.latitude || activeBranch?.latitude,
+        longitude: userLocation?.longitude || activeBranch?.longitude,
+        branchId: targetBranchId,
+        branchName: targetBranchName,
+        notes: `Checked out via web portal at ${targetBranchName}`,
       };
 
-      await attendanceService.checkOut(payload);
+      const res = await attendanceService.checkOut(payload);
+      const resData = res?.data || res;
+      const rawOut =
+        resData?.rawCheckOutTime ||
+        resData?.record?.checkOutTime ||
+        resData?.checkOutTime ||
+        nowIso;
 
       setIsCheckedIn(false);
-      setCheckOutTime(nowIso);
+      setCheckOutTime(rawOut);
+      checkInTimestampRef.current = null;
 
       if (typeof window !== "undefined") {
         localStorage.setItem("wg_punch_date", todayStr);
-        localStorage.setItem("wg_checkout_time", nowIso);
+        localStorage.setItem("wg_checkout_time", rawOut);
       }
 
       setStatusMessage("Checked out successfully. Have a great evening!");
       setTimeout(() => setStatusMessage(null), 5000);
-      if (onStatusChange) onStatusChange({ isCheckedIn: false, checkOutTime: nowIso });
+      if (onStatusChange) onStatusChange({ isCheckedIn: false, checkOutTime: rawOut });
     } catch {
       setIsCheckedIn(false);
       setCheckOutTime(nowIso);
+      checkInTimestampRef.current = null;
 
       if (typeof window !== "undefined") {
         localStorage.setItem("wg_punch_date", todayStr);
@@ -390,16 +540,6 @@ export function CheckInOutWidget({
     }
   };
 
-  const formatTimeOnly = (isoString?: string | null) => {
-    if (!isoString) return "--:--";
-    try {
-      const date = new Date(isoString);
-      if (isNaN(date.getTime())) return isoString;
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
-    } catch {
-      return isoString;
-    }
-  };
 
   // ── VARIANT: BANNER (Header Navigation Bar) ──
   if (variant === "banner") {
@@ -566,24 +706,15 @@ export function CheckInOutWidget({
           </div>
         </div>
 
-        {/* Action Button & Branch Selector */}
+        {/* Action Button & Employee Assigned Branch Indicator */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          {/* Branch Selector */}
-          {branches.length > 0 && (
-            <div className="w-full sm:w-auto">
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-semibold text-slate-700 focus:border-[#EA6118] focus:outline-none"
-              >
-                {branches.map((branch, bIdx) => (
-                  <option key={branch.id || `checkin-br-${bIdx}`} value={branch.id}>
-                    📍 {branch.name} ({branch.city})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Employee's Designated Branch (Fixed to user profile / DB) */}
+          <div className="w-full sm:w-auto inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-xs font-semibold text-slate-700 shadow-sm">
+            <span className="text-sm">📍</span>
+            <span className="font-semibold text-slate-800 truncate max-w-[260px] sm:max-w-[320px]" title={displayBranchName}>
+              {displayBranchName}
+            </span>
+          </div>
 
           {isCheckedIn ? (
             <button

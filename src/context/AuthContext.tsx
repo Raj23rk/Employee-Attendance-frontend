@@ -31,6 +31,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           employeeId: userData.employeeId || "WG-EMP",
           designation: userData.designation,
           gender: userData.gender,
+          branch: userData.branch || userData.branchName || userData.campus || "",
+          phone: userData.phone || "",
+          avatar: userData.avatar || userData.avatarUrl || "",
+          dateOfJoining: userData.dateOfJoining || "",
         };
         setUser(formattedUser);
         authStorage.updateUser(formattedUser);
@@ -83,6 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           employeeId: apiUser.employeeId || "WG-EMP",
           designation: apiUser.designation,
           gender: apiUser.gender,
+          branch: apiUser.branch || apiUser.branchName || apiUser.campus || "",
+          phone: apiUser.phone || "",
+          avatar: apiUser.avatar || apiUser.avatarUrl || "",
+          dateOfJoining: apiUser.dateOfJoining || "",
         };
 
         authStorage.saveSession({
