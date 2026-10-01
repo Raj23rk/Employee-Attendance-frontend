@@ -395,7 +395,7 @@ export function generateBranchAttendancePdf(
   <div class="report-container">
     <div class="report-header">
       <div>
-        <div class="org-title">WEGROW EDUCATION INSTITUTIONS</div>
+        <div class="org-title">WEGROW SKILL CAMPUS</div>
         <div class="org-subtitle">${options?.reportTitle || "Staff Attendance & Biometric Daily Master Register"}</div>
       </div>
       <div class="meta-box">
@@ -989,7 +989,7 @@ export function generateEmployeeIndividualPdf(
   <div class="report-container">
     <div class="header">
       <div>
-        <div class="org-title">WEGROW EDUCATION INSTITUTIONS</div>
+        <div class="org-title">WEGROW SKILL CAMPUS</div>
         <div class="org-subtitle">Individual Monthly Attendance &amp; Biometric Audit Log</div>
       </div>
       <div class="meta-box">
