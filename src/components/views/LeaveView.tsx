@@ -354,47 +354,106 @@ function LeaveContent() {
           </h3>
           {teamRequests.length > 0 ? (
             <div className="space-y-3">
-              {teamRequests.map((req: any) => (
-                <div key={req._id || req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-slate-900 text-sm">{req.employeeName || req.name || "Staff Member"}</p>
-                      <span className="rounded bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-bold">
-                        {req.leaveType || req.type}
-                      </span>
-                      {req.leaveType === "SICK" && !req.medicalCertificateUrl && (
-                        <span className="rounded bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold">
-                          No Medical Cert (Mark as LOP)
+              {teamRequests.map((req: any) => {
+                const empName =
+                  (typeof req.userId === "object" ? req.userId?.name : null) ||
+                  req.employeeName ||
+                  req.userName ||
+                  req.name ||
+                  (typeof req.userId === "string" ? req.userId : "Staff Member");
+                const empId =
+                  (typeof req.userId === "object" ? req.userId?.employeeId : null) ||
+                  req.employeeId;
+                const empDept =
+                  (typeof req.userId === "object" ? req.userId?.department : null) ||
+                  req.department;
+                const empBranch =
+                  (typeof req.userId === "object" ? req.userId?.branch : null) ||
+                  req.branch;
+                const empDesignation =
+                  (typeof req.userId === "object" ? req.userId?.designation : null) ||
+                  req.designation;
+
+                return (
+                  <div
+                    key={req._id || req.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs gap-3 hover:border-slate-300 transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-slate-900 text-sm">{empName}</p>
+                        {empId && (
+                          <span className="text-slate-400 font-medium text-xs font-mono">
+                            ({empId})
+                          </span>
+                        )}
+                        <span className="rounded bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-bold uppercase">
+                          {req.leaveType || req.type}
                         </span>
+                        {req.isLop && (
+                          <span className="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                            LOP ({req.lopDays || 0}d)
+                          </span>
+                        )}
+                        {req.leaveType === "SICK" && !req.medicalCertificateUrl && (
+                          <span className="rounded bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold">
+                            No Medical Cert (Mark as LOP)
+                          </span>
+                        )}
+                      </div>
+
+                      {(empDesignation || empDept || empBranch) && (
+                        <p className="text-slate-400 text-[11px] mt-0.5 font-medium">
+                          {[empDesignation, empDept, empBranch].filter(Boolean).join(" • ")}
+                        </p>
                       )}
+
+                      <p className="text-slate-500 mt-1">
+                        Dates:{" "}
+                        <strong className="text-slate-700">
+                          {req.fromDate || req.from} to {req.toDate || req.to}
+                        </strong>{" "}
+                        ({req.days} days
+                        {req.paidDays !== undefined && req.lopDays !== undefined
+                          ? ` • ${req.paidDays} Paid, ${req.lopDays} LOP`
+                          : ""}
+                        )
+                      </p>
+
+                      {req.lopReason && (
+                        <p className="text-amber-700 text-[11px] mt-0.5 font-medium">
+                          ⚠️ {req.lopReason}
+                        </p>
+                      )}
+
+                      <p className="text-slate-500 text-[11px]">
+                        Reason: {req.reason}
+                      </p>
                     </div>
-                    <p className="text-slate-500 mt-1">
-                      Dates: <strong className="text-slate-700">{req.fromDate || req.from} to {req.toDate || req.to}</strong> ({req.days} days)
-                    </p>
-                    <p className="text-slate-500 text-[11px]">Reason: {req.reason}</p>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleReviewLeave(req._id || req.id, "APPROVE", false)}
+                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
+                      >
+                        Approve (Paid)
+                      </button>
+                      <button
+                        onClick={() => handleReviewLeave(req._id || req.id, "APPROVE", true)}
+                        className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
+                      >
+                        Approve (LOP)
+                      </button>
+                      <button
+                        onClick={() => handleReviewLeave(req._id || req.id, "REJECT")}
+                        className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
+                      >
+                        Reject
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleReviewLeave(req._id || req.id, "APPROVE", false)}
-                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
-                    >
-                      Approve (Paid)
-                    </button>
-                    <button
-                      onClick={() => handleReviewLeave(req._id || req.id, "APPROVE", true)}
-                      className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
-                    >
-                      Approve (LOP)
-                    </button>
-                    <button
-                      onClick={() => handleReviewLeave(req._id || req.id, "REJECT")}
-                      className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-2 text-xs transition-colors shadow-sm"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs text-slate-400 text-center py-8">No pending team leave requests at this time.</p>
@@ -410,13 +469,25 @@ function LeaveContent() {
           </h3>
           {calendarLeaves.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-              {calendarLeaves.map((event: any, idx) => (
-                <div key={idx} className="p-3 rounded-2xl bg-orange-50/50 border border-orange-100">
-                  <p className="font-bold text-slate-900">{event.employeeName || event.name}</p>
-                  <p className="text-slate-500">{event.leaveType || "Leave"} • {event.department || "Campus"}</p>
-                  <p className="text-[11px] text-orange-600 font-semibold mt-1">{event.fromDate} - {event.toDate}</p>
-                </div>
-              ))}
+              {calendarLeaves.map((event: any, idx) => {
+                const empName =
+                  (typeof event.userId === "object" ? event.userId?.name : null) ||
+                  event.employeeName ||
+                  event.userName ||
+                  event.name ||
+                  "Staff Member";
+                const empDept =
+                  (typeof event.userId === "object" ? event.userId?.department : null) ||
+                  event.department ||
+                  "Campus";
+                return (
+                  <div key={idx} className="p-3 rounded-2xl bg-orange-50/50 border border-orange-100">
+                    <p className="font-bold text-slate-900">{empName}</p>
+                    <p className="text-slate-500">{event.leaveType || "Leave"} • {empDept}</p>
+                    <p className="text-[11px] text-orange-600 font-semibold mt-1">{event.fromDate} - {event.toDate}</p>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs text-slate-400 text-center py-8">No active leaves scheduled on the campus calendar.</p>

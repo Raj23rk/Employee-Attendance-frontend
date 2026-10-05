@@ -1018,17 +1018,35 @@ function EmployeesContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {allLeaves.map((lv, lIdx) => (
-                  <tr key={lv.id ? `leave-${lv.id}-${lIdx}` : `leave-row-${lIdx}`} className="hover:bg-slate-50/70">
-                    <td className="py-3 px-3">
-                      <p className="font-bold text-slate-900">{lv.employeeName}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">{lv.employeeId}</p>
-                    </td>
+                {allLeaves.map((lv, lIdx) => {
+                  const empName =
+                    (typeof lv.userId === "object" ? lv.userId?.name : null) ||
+                    lv.employeeName ||
+                    lv.userName ||
+                    lv.name ||
+                    "Staff Member";
+                  const empId =
+                    (typeof lv.userId === "object" ? lv.userId?.employeeId : null) ||
+                    lv.employeeId;
+                  const empBranch =
+                    (typeof lv.userId === "object" ? lv.userId?.branch : null) ||
+                    lv.branch ||
+                    "Main Campus / HQ";
+                  const empDept =
+                    (typeof lv.userId === "object" ? lv.userId?.department : null) ||
+                    lv.department;
 
-                    <td className="py-3 px-3">
-                      <p className="font-semibold text-slate-800">{lv.branch || "Main Campus / HQ"}</p>
-                      <p className="text-[11px] text-slate-500">{lv.department}</p>
-                    </td>
+                  return (
+                    <tr key={lv.id ? `leave-${lv.id}-${lIdx}` : `leave-row-${lIdx}`} className="hover:bg-slate-50/70">
+                      <td className="py-3 px-3">
+                        <p className="font-bold text-slate-900">{empName}</p>
+                        {empId && <p className="text-[11px] text-slate-400 font-mono">{empId}</p>}
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <p className="font-semibold text-slate-800">{empBranch}</p>
+                        {empDept && <p className="text-[11px] text-slate-500">{empDept}</p>}
+                      </td>
 
                     <td className="py-3 px-3">
                       <span className="rounded-lg bg-blue-50 text-blue-700 font-bold px-2 py-0.5 text-[10px]">
@@ -1078,13 +1096,13 @@ function EmployeesContent() {
                       {lv.status === "PENDING" ? (
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => toast.success(`Leave application for ${lv.employeeName} approved.`)}
+                            onClick={() => toast.success(`Leave application for ${empName} approved.`)}
                             className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() => toast.info(`Leave application for ${lv.employeeName} rejected.`)}
+                            onClick={() => toast.info(`Leave application for ${empName} rejected.`)}
                             className="rounded-lg bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 text-[11px] font-bold"
                           >
                             Reject
@@ -1097,7 +1115,8 @@ function EmployeesContent() {
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           ) : (

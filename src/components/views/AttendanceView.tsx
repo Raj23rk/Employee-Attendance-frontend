@@ -396,7 +396,13 @@ function AttendanceContent() {
                 {pendingCorrections.map((req: any) => (
                   <div key={req._id || req.id} className="flex items-center justify-between p-3 rounded-2xl bg-white border border-amber-200 shadow-xs text-xs">
                     <div>
-                      <p className="font-bold text-slate-900">{req.userName || req.employeeName || req.employee || "Staff Member"}</p>
+                      <p className="font-bold text-slate-900">
+                        {(typeof req.userId === "object" ? req.userId?.name : null) ||
+                          req.userName ||
+                          req.employeeName ||
+                          req.employee ||
+                          "Staff Member"}
+                      </p>
                       <p className="text-[11px] text-slate-500">Date: {req.targetDate || req.date} • Reason: {req.reason}</p>
                     </div>
                     <div className="flex items-center gap-2">
