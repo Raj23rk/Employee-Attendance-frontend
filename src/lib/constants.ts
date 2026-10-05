@@ -125,4 +125,36 @@ export const formatRoleLabel = (role?: string): string => {
   return (ROLE_LABELS as Record<string, string>)[normalized] || role;
 };
 
+export interface PublicHoliday {
+  id: string;
+  name: string;
+  date: string; // YYYY-MM-DD
+  dayOfWeek: string;
+  type: "NATIONAL" | "FESTIVAL" | "INSTITUTIONAL" | "GAZETTED";
+  description?: string;
+}
+
+export const DEFAULT_PUBLIC_HOLIDAYS_2026: PublicHoliday[] = [
+  { id: "h-1", name: "New Year's Day", date: "2026-01-01", dayOfWeek: "Thursday", type: "NATIONAL", description: "Global New Year Celebration" },
+  { id: "h-2", name: "Pongal / Makar Sankranti", date: "2026-01-14", dayOfWeek: "Wednesday", type: "FESTIVAL", description: "Harvest Festival of Tamil Nadu" },
+  { id: "h-3", name: "Thiruvalluvar Day", date: "2026-01-15", dayOfWeek: "Thursday", type: "FESTIVAL", description: "Honoring Saint Poet Thiruvalluvar" },
+  { id: "h-4", name: "Uzhavar Thirunal", date: "2026-01-16", dayOfWeek: "Friday", type: "FESTIVAL", description: "Farmers Day Celebrations" },
+  { id: "h-5", name: "Republic Day", date: "2026-01-26", dayOfWeek: "Monday", type: "NATIONAL", description: "Indian Republic Day Celebration" },
+  { id: "h-6", name: "Maha Shivaratri", date: "2026-02-15", dayOfWeek: "Sunday", type: "FESTIVAL", description: "Great Night of Shiva" },
+  { id: "h-7", name: "Holi", date: "2026-03-04", dayOfWeek: "Wednesday", type: "FESTIVAL", description: "Festival of Colors" },
+  { id: "h-8", name: "Good Friday", date: "2026-04-03", dayOfWeek: "Friday", type: "GAZETTED", description: "Easter Weekend Observance" },
+  { id: "h-9", name: "Tamil New Year / Puthandu", date: "2026-04-14", dayOfWeek: "Tuesday", type: "FESTIVAL", description: "Tamil Solar Calendar New Year" },
+  { id: "h-10", name: "May Day / Labour Day", date: "2026-05-01", dayOfWeek: "Friday", type: "NATIONAL", description: "International Workers' Day" },
+  { id: "h-11", name: "Bakrid / Eid al-Adha", date: "2026-05-27", dayOfWeek: "Wednesday", type: "FESTIVAL", description: "Feast of the Sacrifice" },
+  { id: "h-12", name: "Muharram", date: "2026-06-26", dayOfWeek: "Friday", type: "GAZETTED", description: "Islamic New Year Observance" },
+  { id: "h-13", name: "Independence Day", date: "2026-08-15", dayOfWeek: "Saturday", type: "NATIONAL", description: "Indian Independence Day (79th Year)" },
+  { id: "h-14", name: "Milad-un-Nabi", date: "2026-08-25", dayOfWeek: "Tuesday", type: "FESTIVAL", description: "Prophet's Birthday" },
+  { id: "h-15", name: "Vinayagar Chaturthi", date: "2026-09-14", dayOfWeek: "Monday", type: "FESTIVAL", description: "Lord Ganesha Festival" },
+  { id: "h-16", name: "Gandhi Jayanti", date: "2026-10-02", dayOfWeek: "Friday", type: "NATIONAL", description: "Mahatma Gandhi's Birthday" },
+  { id: "h-17", name: "Ayutha Pooja / Saraswathi Pooja", date: "2026-10-19", dayOfWeek: "Monday", type: "FESTIVAL", description: "Worship of Knowledge & Tools" },
+  { id: "h-18", name: "Vijaya Dasami / Dussehra", date: "2026-10-20", dayOfWeek: "Tuesday", type: "FESTIVAL", description: "Victory of Good over Evil" },
+  { id: "h-19", name: "Deepavali / Diwali", date: "2026-11-08", dayOfWeek: "Sunday", type: "FESTIVAL", description: "Festival of Lights" },
+  { id: "h-20", name: "Christmas", date: "2026-12-25", dayOfWeek: "Friday", type: "NATIONAL", description: "Christmas Day Celebration" },
+];
+
 

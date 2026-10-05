@@ -20,6 +20,12 @@ export const tasksService = {
     return response.data;
   },
 
+  // 7.1.1 Get All Kanban Board Tasks
+  async getKanbanTasks(filters: Record<string, any> = {}) {
+    const response = await apiClient.get("/tasks", { params: filters });
+    return response.data;
+  },
+
   // 7.2 Create Task (Manager / HR / CEO)
   async createTask(payload: CreateTaskPayload) {
     const response = await apiClient.post("/tasks", payload);

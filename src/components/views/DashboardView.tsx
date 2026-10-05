@@ -527,73 +527,109 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* TODAY'S BIRTHDAY HERO SPOTLIGHT BANNER (Shows when anyone has birthday today) */}
-      {todayBirthdays.length > 0 && (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#EA6118] via-[#FF8A3D] to-[#F59E0B] p-5 sm:p-6 text-white shadow-lg border border-orange-300/40 animate-fade-in">
-          <div className="absolute -right-6 -bottom-6 text-white/15 text-8xl pointer-events-none select-none">
-            🎂
-          </div>
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-3xl sm:text-4xl shadow-md shrink-0 animate-bounce">
-                🎂
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="rounded-full bg-white text-orange-700 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-xs">
-                    🎉 TODAY&apos;S BIRTHDAY
-                  </span>
-                  <span className="text-white/90 text-xs font-semibold">
-                    {todayBirthdays[0].dateInfo.formattedDate}
-                  </span>
-                </div>
-                <h2 className="font-heading text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-white drop-shadow-xs">
-                  Happy Birthday to{" "}
-                  <span className="underline decoration-white/60 underline-offset-4">
-                    {todayBirthdays.map((b) => b.name || b.userName).join(" & ")}
-                  </span>
-                  ! 🎈
-                </h2>
-                <p className="text-xs sm:text-sm text-white/90 font-medium">
-                  {todayBirthdays.length === 1
-                    ? `Join the WeGrow family in making ${todayBirthdays[0].name || todayBirthdays[0].userName}'s special day memorable!`
-                    : `Join us in sending joyful birthday wishes to our amazing colleagues today!`}
-                </p>
-              </div>
-            </div>
+      {/* TODAY'S BIRTHDAY HERO SPOTLIGHT BANNER */}
+      {todayBirthdays.length > 0 && (() => {
+        const isUserSelf = (person: any) => {
+          if (!user) return false;
+          if (person.userId && user.id && String(person.userId) === String(user.id)) return true;
+          if (person.id && user.id && String(person.id) === String(user.id)) return true;
+          if (person.employeeId && user.employeeId && person.employeeId === user.employeeId) return true;
+          if (person.email && user.email && person.email.toLowerCase() === user.email.toLowerCase()) return true;
+          if (person.name && user.name && person.name.trim().toLowerCase() === user.name.trim().toLowerCase()) return true;
+          if (person.userName && user.name && person.userName.trim().toLowerCase() === user.name.trim().toLowerCase()) return true;
+          return false;
+        };
 
-            <div className="flex items-center gap-2.5 self-stretch md:self-auto shrink-0 flex-wrap">
-              {todayBirthdays.map((b, idx) => {
-                const targetId = b.userId || b.id || b._id;
-                const isWished = wishedIds.includes(String(targetId));
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleOpenWishModal(b)}
-                    className={`flex-1 md:flex-none flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all shadow-md active:scale-95 ${
-                      isWished
-                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                        : "bg-white text-[#EA6118] hover:bg-orange-50 hover:shadow-lg"
-                    }`}
-                  >
-                    {isWished ? (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>Wished {b.name ? b.name.split(" ")[0] : ""} ❤️</span>
-                      </>
+        const myBirthdayToday = todayBirthdays.find((b) => isUserSelf(b));
+        const otherBirthdaysToday = todayBirthdays.filter((b) => !isUserSelf(b));
+
+        return (
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#EA6118] via-[#FF8A3D] to-[#F59E0B] p-5 sm:p-6 text-white shadow-lg border border-orange-300/40 animate-fade-in">
+            <div className="absolute -right-6 -bottom-6 text-white/15 text-8xl pointer-events-none select-none">
+              🎂
+            </div>
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-3xl sm:text-4xl shadow-md shrink-0 animate-bounce">
+                  🎂
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="rounded-full bg-white text-orange-700 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-xs">
+                      {myBirthdayToday ? "🎉 YOUR BIRTHDAY TODAY!" : "🎉 TODAY'S BIRTHDAY"}
+                    </span>
+                    <span className="text-white/90 text-xs font-semibold">
+                      {todayBirthdays[0].dateInfo.formattedDate}
+                    </span>
+                  </div>
+                  <h2 className="font-heading text-lg sm:text-xl lg:text-2xl font-black tracking-tight text-white drop-shadow-xs">
+                    {myBirthdayToday ? (
+                      otherBirthdaysToday.length > 0 ? (
+                        <>Happy Birthday to You &amp; {otherBirthdaysToday.map((b) => b.name || b.userName).join(" & ")}! 🎈</>
+                      ) : (
+                        <>Happy Birthday, {firstName}! 🎈🎂</>
+                      )
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4 text-amber-500 fill-amber-500" />
-                        <span>Wish {b.name ? b.name.split(" ")[0] : "Colleague"} 🎉</span>
+                        Happy Birthday to{" "}
+                        <span className="underline decoration-white/60 underline-offset-4">
+                          {todayBirthdays.map((b) => b.name || b.userName).join(" & ")}
+                        </span>
+                        ! 🎈
                       </>
                     )}
-                  </button>
-                );
-              })}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-white/90 font-medium">
+                    {myBirthdayToday ? (
+                      `The entire WeGrow family wishes you a fantastic day filled with joy, great health, and tremendous success!`
+                    ) : todayBirthdays.length === 1 ? (
+                      `Join the WeGrow family in making ${todayBirthdays[0].name || todayBirthdays[0].userName}'s special day memorable!`
+                    ) : (
+                      `Join us in sending joyful birthday wishes to our amazing colleagues today!`
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 self-stretch md:self-auto shrink-0 flex-wrap">
+                {myBirthdayToday && (
+                  <div className="flex items-center gap-2 rounded-2xl bg-white/25 backdrop-blur-md border border-white/40 px-5 py-3 text-xs sm:text-sm font-black text-white shadow-md">
+                    <Sparkles className="h-4 w-4 text-amber-200 fill-amber-200" />
+                    <span>Celebrating You Today! 🌟</span>
+                  </div>
+                )}
+                {otherBirthdaysToday.map((b, idx) => {
+                  const targetId = b.userId || b.id || b._id;
+                  const isWished = wishedIds.includes(String(targetId));
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleOpenWishModal(b)}
+                      className={`flex-1 md:flex-none flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all shadow-md active:scale-95 ${
+                        isWished
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "bg-white text-[#EA6118] hover:bg-orange-50 hover:shadow-lg"
+                      }`}
+                    >
+                      {isWished ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>Wished {b.name ? b.name.split(" ")[0] : ""} ❤️</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 text-amber-500 fill-amber-500" />
+                          <span>Wish {b.name ? b.name.split(" ")[0] : "Colleague"} 🎉</span>
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -785,23 +821,39 @@ function DashboardContent() {
                       </div>
 
                       <div className="shrink-0 ml-2">
-                        {isWished ? (
-                          <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="h-3 w-3" />
-                            <span>Wished</span>
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleOpenWishModal(celeb)}
-                            className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 ${
-                              isToday
-                                ? "bg-gradient-to-r from-[#EA6118] to-[#D9520A] text-white hover:opacity-95 shadow-orange-500/25"
-                                : "bg-white hover:bg-amber-50 text-[#EA6118] border border-orange-200"
-                            }`}
-                          >
-                            <span>{isToday ? "🎉 Wish" : "Wish"}</span>
-                          </button>
-                        )}
+                        {(() => {
+                          const isMe =
+                            (user?.id && (celeb.userId === user.id || celeb.id === user.id)) ||
+                            (user?.employeeId && celeb.employeeId === user.employeeId) ||
+                            (user?.name && celeb.name && celeb.name.trim().toLowerCase() === user.name.trim().toLowerCase()) ||
+                            (user?.name && celeb.userName && celeb.userName.trim().toLowerCase() === user.name.trim().toLowerCase());
+
+                          if (isMe) {
+                            return (
+                              <span className="inline-flex items-center gap-1 rounded-xl bg-orange-100 px-2.5 py-1 text-[10px] font-extrabold text-[#EA6118] border border-orange-200">
+                                🎉 It&apos;s You!
+                              </span>
+                            );
+                          }
+
+                          return isWished ? (
+                            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>Wished</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenWishModal(celeb)}
+                              className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 ${
+                                isToday
+                                  ? "bg-gradient-to-r from-[#EA6118] to-[#D9520A] text-white hover:opacity-95 shadow-orange-500/25"
+                                  : "bg-white hover:bg-amber-50 text-[#EA6118] border border-orange-200"
+                              }`}
+                            >
+                              <span>{isToday ? "🎉 Wish" : "Wish"}</span>
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   );

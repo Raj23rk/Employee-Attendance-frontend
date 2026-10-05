@@ -45,12 +45,30 @@ export const usersService = {
     return response.data;
   },
 
-  // 3.3 Change Password
+  // 3.3 Change Password (Self-service: oldPassword + newPassword)
   async changePassword(oldPassword: string, newPassword: string) {
     const response = await apiClient.put("/users/me/change-password", {
       oldPassword,
       newPassword,
     });
+    return response.data;
+  },
+
+  // 3.3.1 Update User Password (Admin / HR / Manager / MD / GM direct reset)
+  async updateUserPassword(payload: { email?: string; employeeId?: string; userId?: string; password: string }) {
+    const response = await apiClient.post("/users/update-password", payload);
+    return response.data;
+  },
+
+  // 3.3.2 Update User Password by User ID (PUT /users/:id/password)
+  async updatePasswordById(id: string, password: string) {
+    const response = await apiClient.put(`/users/${id}/password`, { password });
+    return response.data;
+  },
+
+  // 3.3.3 Get Staff List for Dropdowns, Task Assignments & Institutional Roster
+  async getStaffList() {
+    const response = await apiClient.get<{ success?: boolean; count?: number; data: any[] }>("/users/staff-list");
     return response.data;
   },
 

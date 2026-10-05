@@ -6,6 +6,10 @@ export interface ApplyLeavePayload {
   toDate: string;    // "2026-10-02"
   days: number;
   reason: string;
+  assignedRoles?: string[]; // e.g. ["HR", "MD", "GM", "MANAGER"]
+  approverRole?: string;
+  sendNotification?: boolean;
+  notifyEmails?: string[];
   documentUrl?: string;
   medicalCertificateUrl?: string;
   medicalCertificateName?: string;
@@ -15,6 +19,8 @@ export interface ReviewLeavePayload {
   action: "APPROVE" | "REJECT";
   comments?: string;
   markAsLop?: boolean;
+  paidDays?: number;
+  lopDays?: number;
 }
 
 export const leavesService = {

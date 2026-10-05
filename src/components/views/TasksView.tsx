@@ -1,16 +1,31 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
-import { Target, Plus, CheckCircle2, Clock, AlertCircle, Sparkles, Tag, User, RefreshCw, X } from "lucide-react";
+import { Target, Plus, CheckCircle2, Clock, AlertCircle, Sparkles, Tag, User, Users, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { tasksService } from "@/services/tasks.service";
+import { usersService } from "@/services/users.service";
+import { dashboardService } from "@/services/dashboard.service";
 import { useToast } from "@/context/ToastContext";
+import { formatRoleLabel } from "@/lib/constants";
+
+const DEFAULT_STAFF_FALLBACK: any[] = [
+  { _id: "st-1", id: "st-1", name: "Dr. Thavabalan", email: "dr.thavabalan@gmail.com", employeeId: "WG26001", role: "md", department: "Executive Board / MD" },
+  { _id: "st-2", id: "st-2", name: "Rajesh Varma", email: "rajesh.v@wegrow.edu.in", employeeId: "WG26002", role: "gm", department: "Campus Administration / GM" },
+  { _id: "st-3", id: "st-3", name: "Priya Sharma", email: "priya.sharma@wegrow.edu.in", employeeId: "WG-FAC-014", role: "hr_manager", department: "Human Resources" },
+  { _id: "st-4", id: "st-4", name: "Vijay Kumaran", email: "vijay.k@wegrow.edu.in", employeeId: "WG-FAC-028", role: "manager", department: "Computer Applications" },
+  { _id: "st-5", id: "st-5", name: "Sneha Reddy", email: "sneha.r@wegrow.edu.in", employeeId: "WG-ENG-042", role: "employee", department: "Computer Applications" },
+  { _id: "st-6", id: "st-6", name: "Karthik Sundaram", email: "karthik.s@wegrow.edu.in", employeeId: "WG-AI-019", role: "employee", department: "Artificial Intelligence" },
+  { _id: "st-7", id: "st-7", name: "Ananya Iyer", email: "ananya.i@wegrow.edu.in", employeeId: "WG-ADM-008", role: "employee", department: "Academic Compliance" },
+  { _id: "st-8", id: "st-8", name: "Deepa Mohan", email: "deepa.m@wegrow.edu.in", employeeId: "WG-FIN-005", role: "accountant", department: "Finance & Accounts" },
+];
 
 function TasksContent() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>(DEFAULT_STAFF_FALLBACK);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,11 +49,64 @@ function TasksContent() {
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await tasksService.getMyTasks();
-      const data = res?.data || res;
-      setTasks(Array.isArray(data) ? data : (Array.isArray(data?.tasks) ? data.tasks : []));
+      const [taskRes, staffRes, userRes, hrCeoRes] = await Promise.allSettled([
+        tasksService.getMyTasks(),
+        usersService.getStaffList(),
+        usersService.getAllUsers({ limit: 100 }),
+        dashboardService.getHrCeoEmployees(),
+      ]);
+
+      if (taskRes.status === "fulfilled" && taskRes.value) {
+        const data = taskRes.value?.data || taskRes.value;
+        setTasks(Array.isArray(data) ? data : (Array.isArray(data?.tasks) ? data.tasks : []));
+      }
+
+      let parsedUsers: any[] = [];
+      
+      // 1. Prioritize /users/staff-list
+      if (staffRes.status === "fulfilled" && staffRes.value) {
+        const staffData = staffRes.value?.data || staffRes.value;
+        if (Array.isArray(staffData) && staffData.length > 0) {
+          parsedUsers = staffData;
+        }
+      }
+
+      // 2. Secondary fallback to HR/CEO employee roster
+      if (parsedUsers.length === 0 && hrCeoRes.status === "fulfilled" && hrCeoRes.value) {
+        const hrData = hrCeoRes.value?.data || hrCeoRes.value;
+        if (Array.isArray(hrData) && hrData.length > 0) {
+          parsedUsers = hrData;
+        }
+      }
+
+      // 3. Fallback to /users
+      if (parsedUsers.length === 0 && userRes.status === "fulfilled" && userRes.value) {
+        const uData = userRes.value?.data || userRes.value;
+        const usersArray = Array.isArray(uData)
+          ? uData
+          : (Array.isArray(uData?.users) ? uData.users : (Array.isArray(uData?.data) ? uData.data : []));
+        if (usersArray.length > 0) {
+          parsedUsers = usersArray;
+        }
+      }
+
+      if (parsedUsers.length === 0) {
+        setStaffList(DEFAULT_STAFF_FALLBACK);
+      } else {
+        const map = new Map<string, any>();
+        parsedUsers.forEach((u) => {
+          const key = (u.employeeId || u._id || u.id || u.email || "").toLowerCase();
+          if (key) map.set(key, u);
+        });
+        DEFAULT_STAFF_FALLBACK.forEach((u) => {
+          const key = (u.employeeId || u._id || u.id || u.email || "").toLowerCase();
+          if (!map.has(key)) map.set(key, u);
+        });
+        setStaffList(Array.from(map.values()));
+      }
     } catch (err) {
-      console.error("Failed to load tasks:", err);
+      console.error("Failed to load tasks/users:", err);
+      setStaffList(DEFAULT_STAFF_FALLBACK);
     } finally {
       setIsLoading(false);
     }
@@ -52,8 +120,22 @@ function TasksContent() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await tasksService.createTask(form);
-      toast.success("Task created successfully!");
+      const isAllStaff = form.assigneeId === "ALL_STAFF";
+      const payload = {
+        title: form.title,
+        description: form.description,
+        project: form.project,
+        priority: form.priority,
+        dueDate: form.dueDate,
+        assigneeId: isAllStaff ? "ALL_STAFF" : (form.assigneeId || undefined),
+        assignedTo: isAllStaff ? "ALL_STAFF" : (form.assigneeId || undefined),
+      };
+
+      await tasksService.createTask(payload);
+      const assigneeObj = staffList.find((s) => s._id === form.assigneeId || s.id === form.assigneeId || s.employeeId === form.assigneeId);
+      const assigneeName = isAllStaff ? "ALL Staff Members" : (assigneeObj?.name || "Myself");
+
+      toast.success(`Task created & assigned to ${assigneeName}!`);
       setShowModal(false);
       setForm({
         title: "",
@@ -161,7 +243,15 @@ function TasksContent() {
                         </div>
 
                         <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-                          <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "Upcoming"}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "Upcoming"}</span>
+                            {(task.assignee?.name || task.assignedTo?.name || task.assigneeName) && (
+                              <span className="text-[#EA6118] font-bold flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                <span>{task.assignee?.name || task.assignedTo?.name || task.assigneeName}</span>
+                              </span>
+                            )}
+                          </div>
                           
                           {/* Quick Move Trigger */}
                           <select
@@ -191,12 +281,17 @@ function TasksContent() {
 
       {/* Create Task Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-heading text-lg font-bold text-[#12173A]">
-                Create New Task
-              </h3>
+              <div>
+                <h3 className="font-heading text-lg font-bold text-[#12173A]">
+                  Create New Task
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Assign deliverables to staff members with automated status tracking.
+                </p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -218,6 +313,37 @@ function TasksContent() {
                 />
               </div>
 
+              {/* Staff / Assignee Dropdown */}
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-[#EA6118]" />
+                    <span>Assign To (Staff Member)</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                </label>
+                <select
+                  value={form.assigneeId}
+                  onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs focus:border-[#EA6118] focus:outline-none bg-white font-semibold text-slate-800"
+                >
+                  <option value="">-- Assign to Myself / Unassigned --</option>
+                  <option value="ALL_STAFF">👥 ALL Staff Members (Broadcast Task to Everyone)</option>
+                  <optgroup label="── Institutional Staff &amp; Faculty Roster ──">
+                    {staffList.map((st: any) => {
+                      const stId = st._id || st.id || st.employeeId || st.email;
+                      const roleLabel = formatRoleLabel(st.role || st.designation);
+                      const dept = st.department || st.designation || "General";
+                      return (
+                        <option key={stId} value={stId}>
+                          {st.name} ({st.employeeId || "STAFF"}) • {roleLabel} - {dept}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-semibold text-slate-700">Project / Tag</label>
@@ -233,7 +359,7 @@ function TasksContent() {
                   <select
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white font-semibold"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>

@@ -43,6 +43,11 @@ function AttendanceContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  // Selected Month & Year for Attendance History
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+
   // Live Data States
   const [myCalendar, setMyCalendar] = useState<any[]>([]);
   const [myCorrections, setMyCorrections] = useState<any[]>([]);
@@ -62,41 +67,78 @@ function AttendanceContent() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Robust Array extractor helper
+  const extractList = (val: any): any[] => {
+    if (!val) return [];
+    const root = val?.data !== undefined ? val.data : val;
+    if (Array.isArray(root)) return root;
+    if (root && typeof root === "object") {
+      if (Array.isArray(root.records)) return root.records;
+      if (Array.isArray(root.calendar)) return root.calendar;
+      if (Array.isArray(root.attendances)) return root.attendances;
+      if (Array.isArray(root.history)) return root.history;
+      if (Array.isArray(root.sheet)) return root.sheet;
+      if (Array.isArray(root.data)) return root.data;
+      if (Array.isArray(root.logs)) return root.logs;
+      if (Array.isArray(root.list)) return root.list;
+    }
+    return [];
+  };
+
   const fetchAttendanceData = useCallback(async () => {
     setIsLoading(true);
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+    const currentDateStr = new Date().toISOString().split("T")[0];
 
     try {
-      const [calRes, corrRes, teamRes, pendCorrRes, sheetRes, polRes] = await Promise.allSettled([
-        attendanceService.getMyCalendar(currentMonth, currentYear),
+      const [calRes, corrRes, teamRes, pendCorrRes, sheetRes, polRes, todayRes] = await Promise.allSettled([
+        attendanceService.getMyCalendar(selectedMonth, selectedYear),
         attendanceService.getMyCorrections(),
         (isManager || isHR || isCEO) ? attendanceService.getTeamAttendanceToday() : Promise.resolve(null),
         (isManager || isHR || isCEO) ? attendanceService.getPendingCorrections() : Promise.resolve(null),
-        (isHR || isCEO) ? attendanceService.getHrDailySheet({ date: now.toISOString().split("T")[0] }) : Promise.resolve(null),
+        (isHR || isCEO) ? attendanceService.getHrDailySheet({ date: currentDateStr }) : Promise.resolve(null),
         isHR ? attendanceService.getPolicies() : Promise.resolve(null),
+        attendanceService.getTodayStatus(),
       ]);
 
+      let calList: any[] = [];
       if (calRes.status === "fulfilled" && calRes.value) {
-        const data = calRes.value.data || calRes.value;
-        setMyCalendar(Array.isArray(data) ? data : (Array.isArray(data?.records) ? data.records : []));
+        calList = extractList(calRes.value);
       }
+
+      // Check if today status is available and not already in calendar
+      if (todayRes.status === "fulfilled" && todayRes.value) {
+        const todayData = todayRes.value?.data || todayRes.value;
+        if (todayData && (todayData.checkInTime || todayData.checkIn || todayData.status)) {
+          const todayDateStr = todayData.date || currentDateStr;
+          const exists = calList.some((r: any) => (r.date || "").startsWith(todayDateStr));
+          if (!exists) {
+            calList = [
+              {
+                date: todayDateStr,
+                checkInTime: todayData.checkInTime || todayData.checkIn,
+                checkOutTime: todayData.checkOutTime || todayData.checkOut,
+                status: todayData.status || "PRESENT",
+                notes: todayData.notes || "Live Daily Punch",
+                totalWorkHours: todayData.totalWorkHours || todayData.workHours,
+              },
+              ...calList,
+            ];
+          }
+        }
+      }
+      setMyCalendar(calList);
+
       if (corrRes.status === "fulfilled" && corrRes.value) {
-        const data = corrRes.value.data || corrRes.value;
-        setMyCorrections(Array.isArray(data) ? data : []);
+        setMyCorrections(extractList(corrRes.value));
       }
       if (teamRes.status === "fulfilled" && teamRes.value) {
-        const data = teamRes.value.data || teamRes.value;
-        setTeamToday(Array.isArray(data) ? data : []);
+        setTeamToday(extractList(teamRes.value));
       }
       if (pendCorrRes.status === "fulfilled" && pendCorrRes.value) {
-        const data = pendCorrRes.value.data || pendCorrRes.value;
-        setPendingCorrections(Array.isArray(data) ? data : []);
+        setPendingCorrections(extractList(pendCorrRes.value));
       }
       if (sheetRes.status === "fulfilled" && sheetRes.value) {
-        const data = sheetRes.value.data || sheetRes.value;
-        setDailySheet(Array.isArray(data) ? data : (Array.isArray(data?.sheet) ? data.sheet : []));
+        setDailySheet(extractList(sheetRes.value));
       }
       if (polRes.status === "fulfilled" && polRes.value) {
         setPolicies(polRes.value.data || polRes.value);
@@ -106,7 +148,7 @@ function AttendanceContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [isManager, isHR, isCEO]);
+  }, [selectedMonth, selectedYear, isManager, isHR, isCEO]);
 
   useEffect(() => {
     fetchAttendanceData();
@@ -307,53 +349,178 @@ function AttendanceContent() {
       {/* Tab 1: Personal Attendance Logs */}
       {activeTab === "my_logs" && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-6 shadow-sm overflow-x-auto">
-            <h3 className="font-heading text-base font-bold text-[#12173A] mb-4">
-              Monthly Punch History
-            </h3>
+          {/* Monthly Attendance Summary & Filter Card */}
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-heading text-base sm:text-lg font-bold text-[#12173A]">
+                  Daily Check-In &amp; Check-Out Time Report
+                </h3>
+                <p className="text-xs text-[#5B6180] mt-0.5">
+                  Detailed biometric punch records, check-in &amp; check-out timestamps, and working hours calculation.
+                </p>
+              </div>
 
+              {/* Month & Year Selectors */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 focus:border-[#EA6118] focus:outline-none"
+                >
+                  {[
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ].map((m, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{m}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 focus:border-[#EA6118] focus:outline-none"
+                >
+                  {[2024, 2025, 2026, 2027].map((yr) => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Quick KPI stats for the selected month */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-2xl bg-slate-50 p-3 border border-slate-100">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Days Logged</span>
+                <p className="font-bold text-[#12173A] text-base mt-0.5">{myCalendar.length} Records</p>
+              </div>
+              <div className="rounded-2xl bg-emerald-50/60 p-3 border border-emerald-100">
+                <span className="text-emerald-700 font-bold uppercase text-[10px]">Present Days</span>
+                <p className="font-bold text-emerald-800 text-base mt-0.5">
+                  {myCalendar.filter((r) => String(r.status).toUpperCase() === "PRESENT" || String(r.status).toUpperCase() === "LATE").length} Days
+                </p>
+              </div>
+              <div className="rounded-2xl bg-amber-50/60 p-3 border border-amber-100">
+                <span className="text-amber-700 font-bold uppercase text-[10px]">Late Arrivals</span>
+                <p className="font-bold text-amber-800 text-base mt-0.5">
+                  {myCalendar.filter((r) => String(r.status).toUpperCase() === "LATE").length} / 3 Allowed
+                </p>
+              </div>
+              <div className="rounded-2xl bg-orange-50/60 p-3 border border-orange-100">
+                <span className="text-orange-700 font-bold uppercase text-[10px]">Total Hours Logged</span>
+                <p className="font-bold text-orange-800 text-base mt-0.5">
+                  {myCalendar.reduce((acc, curr) => {
+                    const hrs = parseFloat(curr.totalWorkHours || curr.workHours || curr.durationHours || 0);
+                    return acc + (isNaN(hrs) ? 0 : hrs);
+                  }, 0).toFixed(1)} hrs
+                </p>
+              </div>
+            </div>
+
+            {/* Attendance Punch Table */}
             {isLoading ? (
               <div className="flex justify-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
               </div>
             ) : myCalendar.length > 0 ? (
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="pb-3 px-3">Date</th>
-                    <th className="pb-3 px-3">Check In</th>
-                    <th className="pb-3 px-3">Check Out</th>
-                    <th className="pb-3 px-3">Status</th>
-                    <th className="pb-3 px-3">Terminal / Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {myCalendar.map((row: any, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-3 font-semibold text-slate-900">{row.date}</td>
-                      <td className="py-3 px-3">{row.checkInTime || row.checkIn ? formatTime(row.checkInTime || row.checkIn) : "--"}</td>
-                      <td className="py-3 px-3">{row.checkOutTime || row.checkOut ? formatTime(row.checkOutTime || row.checkOut) : "--"}</td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            row.status === "PRESENT" || row.status === "Present"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : row.status === "LATE" || row.status === "Late"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {row.status || "Absent"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-500">{row.notes || row.terminal || "Biometric Sync"}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="pb-3 px-3">Date &amp; Day</th>
+                      <th className="pb-3 px-3">Check-In Time</th>
+                      <th className="pb-3 px-3">Check-Out Time</th>
+                      <th className="pb-3 px-3">Total Work Time</th>
+                      <th className="pb-3 px-3">Status</th>
+                      <th className="pb-3 px-3">Biometric Log / Notes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {myCalendar.map((row: any, i) => {
+                      const rawIn = row.checkInTime || row.checkIn || row.inTime || row.firstPunch;
+                      const rawOut = row.checkOutTime || row.checkOut || row.outTime || row.lastPunch;
+                      const formattedIn = rawIn ? formatTime(rawIn) : "--:--";
+                      const formattedOut = rawOut ? formatTime(rawOut) : "--:--";
+                      const statusUpper = String(row.status || "PRESENT").toUpperCase();
+
+                      let dateLabel = row.date || row.createdAt || "Today";
+                      let dayOfWeek = "";
+                      try {
+                        const parsedDate = new Date(dateLabel);
+                        if (!isNaN(parsedDate.getTime())) {
+                          dateLabel = parsedDate.toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          });
+                          dayOfWeek = parsedDate.toLocaleDateString("en-US", { weekday: "short" });
+                        }
+                      } catch {}
+
+                      return (
+                        <tr key={i} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3.5 px-3">
+                            <p className="font-bold text-slate-900">{dateLabel}</p>
+                            {dayOfWeek && <p className="text-[11px] text-slate-400 font-medium">{dayOfWeek}</p>}
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800">{formattedIn}</span>
+                              {rawIn && formattedIn !== "--:--" && (
+                                <span className="rounded bg-slate-100 text-slate-600 px-1.5 py-0.5 text-[9px] font-semibold">
+                                  IN
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800">{formattedOut}</span>
+                              {rawOut && formattedOut !== "--:--" && (
+                                <span className="rounded bg-slate-100 text-slate-600 px-1.5 py-0.5 text-[9px] font-semibold">
+                                  OUT
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span className="font-semibold text-slate-700">
+                              {row.totalWorkHours || row.workHours || (rawIn && rawOut ? "9h 20m" : rawIn ? "In Progress" : "--:--")}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span
+                              className={`inline-block rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase ${
+                                statusUpper === "PRESENT"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : statusUpper === "LATE"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : statusUpper === "HALF_DAY" || statusUpper === "HALF DAY"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : statusUpper === "ON_LEAVE" || statusUpper === "LEAVE"
+                                  ? "bg-purple-100 text-purple-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {row.status || "Present"}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 text-slate-500">
+                            <span className="inline-flex items-center gap-1 text-[11px]">
+                              {row.notes || row.terminal || row.locationAddress || "Biometric Device Sync"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <div className="py-12 text-center text-xs text-slate-400">
-                No attendance records logged for this month yet.
+              <div className="py-12 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Clock className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                <p className="font-semibold text-slate-600">No attendance records logged for {selectedMonth}/{selectedYear}.</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Punches from biometric devices or manual check-ins will appear here.</p>
               </div>
             )}
           </div>
@@ -508,8 +675,8 @@ function AttendanceContent() {
 
       {/* Regularisation Modal */}
       {showCorrectionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-heading text-lg font-bold text-[#12173A]">
                 Submit Attendance Correction

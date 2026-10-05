@@ -34,6 +34,8 @@ import {
   ArrowRight,
   ArrowLeft,
   Trash2,
+  KeyRound,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
@@ -79,7 +81,9 @@ function EmployeesContent() {
   const [onboardStep, setOnboardStep] = useState<1 | 2>(1);
   const [showAddBranchModal, setShowAddBranchModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
-  const [modalActiveTab, setModalActiveTab] = useState<"profile" | "bank" | "attendance" | "leaves">("profile");
+  const [modalActiveTab, setModalActiveTab] = useState<"profile" | "bank" | "attendance" | "leaves" | "security">("profile");
+  const [resetPasswordInput, setResetPasswordInput] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // HR Leave List Data
   const [allLeaves, setAllLeaves] = useState<any[]>([]);
@@ -482,6 +486,7 @@ function EmployeesContent() {
   const handleOpenEmployeePopup = async (emp: User) => {
     setSelectedEmployee(emp);
     setModalActiveTab("profile");
+    setResetPasswordInput("");
     try {
       const res = await dashboardService.getEmployeePopupDetails(emp.id || emp.employeeId);
       const data = res?.data || res;
@@ -490,6 +495,31 @@ function EmployeesContent() {
       }
     } catch {
       // Keep existing data
+    }
+  };
+
+  // Direct Update / Reset Password by Admin, HR, Manager, MD, GM
+  const handleDirectPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmployee || !resetPasswordInput.trim()) return;
+    setIsResettingPassword(true);
+    try {
+      const empId = selectedEmployee.id || (selectedEmployee as any)._id;
+      if (empId) {
+        await usersService.updatePasswordById(empId, resetPasswordInput.trim());
+      } else {
+        await usersService.updateUserPassword({
+          email: selectedEmployee.email,
+          employeeId: selectedEmployee.employeeId,
+          password: resetPasswordInput.trim(),
+        });
+      }
+      toast.success(`Password for ${selectedEmployee.name} updated successfully!`);
+      setResetPasswordInput("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to update employee password.");
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -1080,13 +1110,17 @@ function EmployeesContent() {
 
                     {/* LOP Status */}
                     <td className="py-3 px-3">
-                      {lv.isLop ? (
+                      {lv.paidDays !== undefined && lv.lopDays !== undefined && lv.paidDays > 0 && lv.lopDays > 0 ? (
+                        <span className="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                          Split ({lv.paidDays} Paid, {lv.lopDays} LOP)
+                        </span>
+                      ) : lv.isLop ? (
                         <span className="rounded bg-red-100 text-red-800 px-2 py-0.5 text-[10px] font-bold">
-                          Loss of Pay (LOP)
+                          Loss of Pay ({lv.lopDays || lv.days || 1}d LOP)
                         </span>
                       ) : (
                         <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                          Paid Leave
+                          Paid Leave ({lv.paidDays || lv.days || 1}d)
                         </span>
                       )}
                     </td>
@@ -1127,8 +1161,8 @@ function EmployeesContent() {
 
       {/* ── MODAL: ACTION / FULL EMPLOYEE DOSSIER POPUP ── */}
       {selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto my-auto">
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
@@ -1201,6 +1235,17 @@ function EmployeesContent() {
                 }`}
               >
                 Leave &amp; Medical Cert
+              </button>
+              <button
+                onClick={() => setModalActiveTab("security")}
+                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
+                  modalActiveTab === "security"
+                    ? "bg-[#EA6118] text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <KeyRound className="h-3 w-3" />
+                <span>Password Reset</span>
               </button>
             </div>
 
@@ -1389,6 +1434,52 @@ function EmployeesContent() {
               </div>
             )}
 
+            {/* TAB 5: Direct Password Reset */}
+            {modalActiveTab === "security" && (
+              <form onSubmit={handleDirectPasswordReset} className="space-y-4 text-xs">
+                <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-slate-800 font-bold">
+                    <KeyRound className="h-4 w-4 text-[#EA6118]" />
+                    <span>Direct Password Update / Reset</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    As HR / Executive Admin, you can set a new password directly for <strong>{selectedEmployee.name}</strong> ({selectedEmployee.email}). The employee will immediately be able to sign in using this new password.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700">Enter New Password for Employee</label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      placeholder="e.g. SecretPassword123# or WG@Emp2026"
+                      value={resetPasswordInput}
+                      onChange={(e) => setResetPasswordInput(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-mono focus:border-[#EA6118] focus:outline-none pr-10"
+                    />
+                    <Lock className="absolute right-3 top-3 h-3.5 w-3.5 text-slate-400" />
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Target User ID: <span className="font-mono">{selectedEmployee.id || (selectedEmployee as any)._id || selectedEmployee.employeeId}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={isResettingPassword}
+                    className="gap-2 shadow-sm"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    <span>Update Employee Password</span>
+                  </Button>
+                </div>
+              </form>
+            )}
+
             {/* Footer Actions */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-2">
@@ -1444,8 +1535,8 @@ function EmployeesContent() {
 
       {/* ── MODAL: ADD NEW BRANCH ── */}
       {showAddBranchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-heading text-lg font-bold text-[#12173A]">
@@ -1554,8 +1645,8 @@ function EmployeesContent() {
 
       {/* ── MODAL: ONBOARD NEW EMPLOYEE (2-STEP SCREEN: PROFILE & ROLE -> BANK DETAILS) ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto my-auto">
             {/* Header & Step Indicator */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>

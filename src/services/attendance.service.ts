@@ -18,6 +18,9 @@ export interface PermissionRequestPayload {
   toTime: string;
   durationHours: number;
   reason: string;
+  assignedRoles?: string[]; // e.g. ["HR", "MD", "GM", "MANAGER"]
+  approverRole?: string;
+  sendNotification?: boolean;
 }
 
 export interface AttendanceCorrectionPayload {
