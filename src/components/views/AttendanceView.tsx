@@ -33,12 +33,12 @@ import { generateBranchAttendancePdf } from "@/lib/pdf-reports";
 function AttendanceContent() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = user?.role || "employee";
+  const role = (user?.role || "employee").toLowerCase();
   const isManager = role === "manager";
-  const isHR = role === "hr_manager" || role === "admin";
-  const isCEO = role === "ceo";
+  const isHR = role === "hr_manager" || role === "admin" || role === "md" || role === "gm";
+  const isCEO = role === "ceo" || role === "md" || role === "gm";
 
-  const defaultTab = isManager ? "team" : isHR ? "company" : "my_logs";
+  const defaultTab = (isHR || isCEO) ? "company" : isManager ? "team" : "my_logs";
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);

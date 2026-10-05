@@ -30,7 +30,7 @@ export const colors = {
   infoBg: "#E8ECFB",
 } as const;
 
-export type UserRole = "admin" | "ceo" | "hr_manager" | "manager" | "employee" | "accountant";
+export type UserRole = "admin" | "ceo" | "md" | "gm" | "hr_manager" | "manager" | "employee" | "accountant";
 
 export interface BankDetails {
   accountHolderName: string;
@@ -110,6 +110,8 @@ export const ATTENDANCE_POLICY_CONFIG = {
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Admin",
   ceo: "CEO / Executive",
+  md: "Managing Director (MD)",
+  gm: "General Manager (GM)",
   hr_manager: "HR Manager",
   manager: "Team Manager",
   employee: "Employee",

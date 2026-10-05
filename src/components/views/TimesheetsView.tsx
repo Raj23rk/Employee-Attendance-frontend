@@ -10,8 +10,8 @@ import { useToast } from "@/context/ToastContext";
 function TimesheetsContent() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = user?.role || "employee";
-  const isManager = role === "manager" || role === "hr_manager" || role === "ceo";
+  const role = (user?.role || "employee").toLowerCase();
+  const isManager = role === "manager" || role === "hr_manager" || role === "ceo" || role === "md" || role === "gm" || role === "admin";
 
   const [activeTab, setActiveTab] = useState<"current" | "history" | "manager">("current");
   const [weekStartDate, setWeekStartDate] = useState("2026-09-21");

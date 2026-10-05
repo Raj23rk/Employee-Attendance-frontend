@@ -60,7 +60,7 @@ function EmployeesContent() {
   const { user } = useAuth();
   const toast = useToast();
   const role = (user?.role || "employee").toLowerCase();
-  const isHRorCEO = role === "hr_manager" || role === "ceo" || role === "admin";
+  const isHRorCEO = role === "hr_manager" || role === "ceo" || role === "admin" || role === "md" || role === "gm";
 
   // Data States
   const [employees, setEmployees] = useState<User[]>([]);
@@ -1672,6 +1672,8 @@ function EmployeesContent() {
                         <option value="EMPLOYEE">Employee (Staff / Faculty)</option>
                         <option value="MANAGER">Team Manager</option>
                         <option value="CEO">CEO / Executive</option>
+                        <option value="MD">Managing Director (MD)</option>
+                        <option value="GM">General Manager (GM)</option>
                         <option value="ADMIN">System Admin</option>
                         <option value="ACCOUNTANT">Accountant</option>
                       </select>

@@ -136,7 +136,7 @@ function DashboardContent() {
   const { toast } = useToast();
   const { user } = useAuth();
   const currentRole: UserRole = user?.role || "admin";
-  const isCEO = currentRole === "ceo";
+  const isCEO = currentRole === "ceo" || currentRole === "md" || currentRole === "gm" || currentRole === "admin";
 
   const [isLoading, setIsLoading] = useState(true);
   const [isClocking, setIsClocking] = useState(false);

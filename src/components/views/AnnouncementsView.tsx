@@ -10,8 +10,8 @@ import { useToast } from "@/context/ToastContext";
 function AnnouncementsContent() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = user?.role || "employee";
-  const canPost = role === "hr_manager" || role === "admin" || role === "ceo";
+  const role = (user?.role || "employee").toLowerCase();
+  const canPost = role === "hr_manager" || role === "admin" || role === "ceo" || role === "md" || role === "gm";
 
   const [activeTab, setActiveTab] = useState<"notices" | "events" | "travel">("notices");
   const [announcements, setAnnouncements] = useState<any[]>([]);

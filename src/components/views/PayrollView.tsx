@@ -11,10 +11,9 @@ import { useToast } from "@/context/ToastContext";
 function PayrollContent() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = user?.role || "employee";
-  const isAdminOrHR = role === "admin" || role === "hr_manager" || role === "ceo";
-
-  const [activeTab, setActiveTab] = useState<"my_payroll" | "admin_payroll">("my_payroll");
+  const role = (user?.role || "employee").toLowerCase();
+  const isAdminOrHR = role === "admin" || role === "hr_manager" || role === "ceo" || role === "md" || role === "gm";
+  const [activeTab, setActiveTab] = useState<"my_payroll" | "admin_payroll">(isAdminOrHR ? "admin_payroll" : "my_payroll");
   const [salaryStructure, setSalaryStructure] = useState<any>(null);
   const [payslips, setPayslips] = useState<any[]>([]);
   const [allPayslips, setAllPayslips] = useState<any[]>([]);

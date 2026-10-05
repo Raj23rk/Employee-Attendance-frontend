@@ -15,7 +15,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS, formatRoleLabel } from "@/lib/constants";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/helpers";
 import { notificationsService } from "@/services/notifications.service";
@@ -185,7 +185,7 @@ export function TopBar({ onOpenMobileMenu, collapsed }: TopBarProps) {
                 <p className="text-[11px] text-[#8A8FB0] truncate">{user?.email}</p>
                 <div className="mt-1">
                   <span className="inline-block rounded-md bg-[#EA6118]/10 px-2 py-0.5 text-[10px] font-bold text-[#EA6118]">
-                    {user?.role ? ROLE_LABELS[user.role] : "Staff"}
+                    {formatRoleLabel(user?.role)}
                   </span>
                 </div>
               </div>

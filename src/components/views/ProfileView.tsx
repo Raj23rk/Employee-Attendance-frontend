@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
-import { ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS, formatRoleLabel } from "@/lib/constants";
 import { Avatar } from "@/components/ui/Avatar";
 import { User, Mail, Building, Shield, Phone, MapPin, Calendar, Lock, KeyRound, RefreshCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -117,7 +117,7 @@ function ProfileContent() {
             <h2 className="font-heading text-xl font-bold text-[#12173A]">{name}</h2>
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <span className="rounded-full bg-[#EA6118]/10 px-2.5 py-0.5 text-xs font-bold text-[#EA6118]">
-                {(ROLE_LABELS as Record<string, string>)[role] || role}
+                {formatRoleLabel(role)}
               </span>
               <span className="text-xs text-[#8A8FB0]">ID: <strong className="text-slate-800">{employeeId}</strong></span>
               <span className="text-xs text-slate-500">• {designation}</span>

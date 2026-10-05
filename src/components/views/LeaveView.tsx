@@ -25,13 +25,13 @@ import { useToast } from "@/context/ToastContext";
 function LeaveContent() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = user?.role || "employee";
+  const role = (user?.role || "employee").toLowerCase();
   const isManager = role === "manager";
-  const isHR = role === "hr_manager" || role === "admin";
-  const isCEO = role === "ceo";
+  const isHR = role === "hr_manager" || role === "admin" || role === "md" || role === "gm";
+  const isCEO = role === "ceo" || role === "md" || role === "gm";
   const isFemale = user?.gender?.toLowerCase() === "female";
 
-  const defaultTab = isManager ? "team_approvals" : isHR ? "hr_sanctions" : "my_leaves";
+  const defaultTab = (isManager || isHR || isCEO) ? "team_approvals" : "my_leaves";
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

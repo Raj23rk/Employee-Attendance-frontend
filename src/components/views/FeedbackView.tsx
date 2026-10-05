@@ -10,7 +10,8 @@ import { useToast } from "@/context/ToastContext";
 function FeedbackContent() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const isCEO = user?.role === "ceo";
+  const role = (user?.role || "employee").toLowerCase();
+  const isCEO = role === "ceo" || role === "md" || role === "gm" || role === "admin";
 
   const [activeTab, setActiveTab] = useState<"submit" | "history" | "ceo_inbox">(isCEO ? "ceo_inbox" : "submit");
   const [myFeedback, setMyFeedback] = useState<any[]>([]);
