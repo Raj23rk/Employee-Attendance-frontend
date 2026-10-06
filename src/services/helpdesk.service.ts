@@ -5,6 +5,9 @@ export interface CreateTicketPayload {
   category: "IT" | "HR" | "PAYROLL" | "ADMIN" | string;
   description: string;
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | string;
+  assignedTo?: string;
+  assigneeId?: string;
+  sendNotification?: boolean;
 }
 
 export interface ReplyTicketPayload {

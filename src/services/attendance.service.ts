@@ -14,10 +14,14 @@ export interface PunchPayload {
 
 export interface PermissionRequestPayload {
   date: string;
-  fromTime: string;
-  toTime: string;
-  durationHours: number;
+  fromTime?: string;
+  toTime?: string;
+  startTime?: string;
+  endTime?: string;
+  durationHours?: number;
+  duration?: number;
   reason: string;
+  approvers?: string[];
   assignedRoles?: string[]; // e.g. ["HR", "MD", "GM", "MANAGER"]
   approverRole?: string;
   sendNotification?: boolean;
@@ -90,28 +94,63 @@ export const attendanceService = {
 
   // 4.5 Permission Requests (2 Hours Monthly Quota)
   async submitPermissionRequest(payload: PermissionRequestPayload) {
+    const fromTimeVal = payload.fromTime || payload.startTime || "09:40 AM";
+    const toTimeVal = payload.toTime || payload.endTime || "10:40 AM";
+    const approversVal = payload.approvers || payload.assignedRoles || ["HR", "MD", "GM", "MANAGER"];
+
+    const body = {
+      date: payload.date,
+      fromTime: fromTimeVal,
+      toTime: toTimeVal,
+      startTime: payload.startTime || fromTimeVal,
+      endTime: payload.endTime || toTimeVal,
+      durationHours: payload.durationHours ?? payload.duration ?? 1.0,
+      reason: payload.reason,
+      approvers: approversVal,
+      sendNotification: payload.sendNotification !== undefined ? payload.sendNotification : true,
+    };
+
     try {
-      const response = await apiClient.post("/attendance/permissions/apply", payload);
+      const response = await apiClient.post("/attendance/permissions", body);
       return response.data;
     } catch {
-      const response = await apiClient.post("/attendance/permissions", payload);
+      const response = await apiClient.post("/attendance/permissions/apply", body);
       return response.data;
     }
   },
 
-  async getMyPermissions() {
-    const response = await apiClient.get("/attendance/permissions/my");
+  async getMyPermissions(params?: { month?: number; year?: number }) {
+    const response = await apiClient.get("/attendance/permissions/my", { params });
     return response.data;
   },
 
-  async getTeamPermissions(branch?: string) {
-    const response = await apiClient.get("/attendance/permissions/team", { params: { branch } });
+  async getTeamPermissions(params?: { branch?: string; status?: string } | string) {
+    const queryParams = typeof params === "string" ? { branch: params } : params;
+    const response = await apiClient.get("/attendance/permissions/team", { params: queryParams });
     return response.data;
   },
 
-  async reviewPermission(id: string, action: "APPROVE" | "REJECT", comments?: string) {
-    const response = await apiClient.patch(`/attendance/permissions/${id}/review`, { action, comments });
-    return response.data;
+  async reviewPermission(
+    id: string,
+    actionOrPayload: "APPROVE" | "REJECT" | { action: "APPROVE" | "REJECT"; remarks?: string; comments?: string },
+    comments?: string
+  ) {
+    const body =
+      typeof actionOrPayload === "string"
+        ? { action: actionOrPayload, remarks: comments, comments }
+        : {
+            action: actionOrPayload.action,
+            remarks: actionOrPayload.remarks || actionOrPayload.comments,
+            comments: actionOrPayload.comments || actionOrPayload.remarks,
+          };
+
+    try {
+      const response = await apiClient.patch(`/attendance/permissions/${id}/review`, body);
+      return response.data;
+    } catch {
+      const response = await apiClient.patch(`/attendance/permissions/${id}`, body);
+      return response.data;
+    }
   },
 
   // 4.6 Submit Attendance Correction

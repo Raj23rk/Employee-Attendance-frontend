@@ -170,7 +170,7 @@ export function TopBar({ onOpenMobileMenu, collapsed }: TopBarProps) {
             onClick={() => setShowUserDropdown(!showUserDropdown)}
             className="flex items-center gap-2.5 rounded-xl border border-[#E2E4EF] p-1.5 hover:bg-[#F3F4FA] transition-colors"
           >
-            <Avatar name={user?.name || "User"} size="sm" />
+            <Avatar name={user?.name || "User"} src={user?.avatar} size="sm" />
             <div className="hidden text-left sm:block">
               <p className="text-xs font-bold leading-tight text-[#12173A]">{user?.name}</p>
               <p className="text-[10px] font-medium leading-tight text-[#8A8FB0]">{user?.department}</p>

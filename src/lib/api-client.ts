@@ -4,7 +4,7 @@ import { authStorage } from "./auth-storage";
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.PUBLIC_API_URL ||
-  "https://employee-attendance-backend-1t56.onrender.com/api/v1"
+  "http://localhost:5000/api/v1"
 ).trim();
 
 export const apiClient = axios.create({

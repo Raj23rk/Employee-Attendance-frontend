@@ -104,12 +104,16 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "My Profile", href: "/profile", icon: User },
   ],
   manager: [
-    { label: "Team Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Team Attendance", href: "/attendance", icon: CalendarCheck },
-    { label: "Leave Requests", href: "/leave", icon: CalendarDays },
+    { label: "My Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "My Attendance", href: "/attendance", icon: CalendarCheck },
+    { label: "Apply Leave", href: "/leave", icon: CalendarDays },
+    { label: "My Payslips", href: "/payroll", icon: Wallet },
     { label: "Kanban Tasks", href: "/tasks", icon: Target },
-    { label: "Claim Reviews", href: "/expenses", icon: Receipt },
-    { label: "Timesheets", href: "/timesheets", icon: Clock },
+    { label: "Weekly Timesheets", href: "/timesheets", icon: Clock },
+    { label: "Reimbursements", href: "/expenses", icon: Receipt },
+    { label: "Helpdesk Tickets", href: "/helpdesk", icon: LifeBuoy },
+    { label: "Confidential Feedback", href: "/feedback", icon: Shield },
+    { label: "Documents & Assets", href: "/documents", icon: FileText },
     { label: "Company Notices", href: "/announcements", icon: Megaphone },
     { label: "My Profile", href: "/profile", icon: User },
   ],
@@ -240,7 +244,7 @@ export function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onCloseMobi
       <div className="p-3 border-t border-[#16326F]/60 bg-[#071333]">
         <div className={cn("flex items-center gap-3", collapsed ? "justify-center" : "justify-between")}>
           <Link href="/profile" className="flex items-center gap-2.5 overflow-hidden hover:opacity-90 transition-opacity">
-            <Avatar name={user?.name || "User"} size="md" className="ring-2 ring-[#EA6118]/40" />
+            <Avatar name={user?.name || "User"} src={user?.avatar} size="md" className="ring-2 ring-[#EA6118]/40" />
             {!collapsed && (
               <div className="flex flex-col truncate">
                 <span className="truncate text-xs font-bold text-white">{user?.name}</span>

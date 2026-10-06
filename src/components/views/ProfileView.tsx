@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { ROLE_LABELS, formatRoleLabel } from "@/lib/constants";
 import { Avatar } from "@/components/ui/Avatar";
-import { User, Mail, Building, Shield, Phone, MapPin, Calendar, Lock, KeyRound, RefreshCw, Save } from "lucide-react";
+import { User, Mail, Building, Shield, Phone, MapPin, Calendar, Lock, KeyRound, RefreshCw, Save, Camera, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { usersService } from "@/services/users.service";
 import { useToast } from "@/context/ToastContext";
@@ -15,6 +15,8 @@ function ProfileContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPass, setIsChangingPass] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
 
   // Profile Form
   const [phone, setPhone] = useState("");
@@ -35,6 +37,9 @@ function ProfileContent() {
         setPhone(data.phone || "");
         setPersonalEmail(data.personalEmail || "");
         setAddress(data.address || "");
+        if (data.avatarUrl || data.avatar) {
+          setAvatarPreview(data.avatarUrl || data.avatar);
+        }
       }
     } catch (err) {
       console.error("Failed to load profile:", err);
@@ -47,6 +52,35 @@ function ProfileContent() {
     fetchProfile();
   }, [fetchProfile]);
 
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (< 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size exceeds 5MB. Please choose a smaller image.");
+      return;
+    }
+
+    // Local preview
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    setIsUploadingAvatar(true);
+
+    try {
+      const result: any = await usersService.uploadAvatar(file);
+      const newAvatarUrl = result?.data?.avatarUrl || result?.avatarUrl || result?.data?.avatar || previewUrl;
+      setAvatarPreview(newAvatarUrl);
+      toast.success("Profile picture updated successfully!");
+      await refreshUser();
+      await fetchProfile();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to upload profile picture.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -55,6 +89,7 @@ function ProfileContent() {
         phone,
         personalEmail,
         address,
+        avatarUrl: avatarPreview || undefined,
       });
       toast.success("Profile updated successfully!");
       await refreshUser();
@@ -87,6 +122,7 @@ function ProfileContent() {
   const department = profileData?.department || user?.department || "Campus Operations";
   const employeeId = profileData?.employeeId || user?.employeeId || "WG-001";
   const designation = profileData?.designation || user?.designation || "Staff";
+  const activeAvatar = avatarPreview || profileData?.avatarUrl || profileData?.avatar || user?.avatar || "";
 
   return (
     <div className="space-y-6">
@@ -112,7 +148,41 @@ function ProfileContent() {
       {/* Profile Card */}
       <div className="rounded-3xl border border-[#E2E4EF] bg-white p-6 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-[#E2E4EF]">
-          <Avatar name={name} size="lg" className="ring-4 ring-[#EA6118]/20" />
+          {/* Interactive Avatar Upload */}
+          <div className="relative group shrink-0">
+            <label
+              htmlFor="avatar-upload-input"
+              className="relative block cursor-pointer rounded-full overflow-hidden transition-transform group-hover:scale-105"
+              title="Click to upload profile photo"
+            >
+              <Avatar name={name} src={activeAvatar} size="lg" className="ring-4 ring-[#EA6118]/30 shadow-md" />
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                <Camera className="h-5 w-5 text-white" />
+              </div>
+            </label>
+
+            <label
+              htmlFor="avatar-upload-input"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-[#EA6118] text-white shadow-md hover:bg-[#D9520A] transition-colors ring-2 ring-white"
+              title="Upload photo"
+            >
+              {isUploadingAvatar ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Camera className="h-3.5 w-3.5" />
+              )}
+            </label>
+
+            <input
+              id="avatar-upload-input"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+              disabled={isUploadingAvatar}
+            />
+          </div>
+
           <div className="text-center sm:text-left space-y-1">
             <h2 className="font-heading text-xl font-bold text-[#12173A]">{name}</h2>
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">

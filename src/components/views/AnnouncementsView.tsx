@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
-import { Megaphone, Plus, Bell, Calendar, Sparkles, Heart, RefreshCw, X, Send, MapPin, Plane } from "lucide-react";
+import { Megaphone, Plus, Bell, Calendar, Sparkles, Heart, RefreshCw, X, Send, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { engageService } from "@/services/engage.service";
@@ -13,14 +13,13 @@ function AnnouncementsContent() {
   const role = (user?.role || "employee").toLowerCase();
   const canPost = role === "hr_manager" || role === "admin" || role === "ceo" || role === "md" || role === "gm";
 
-  const [activeTab, setActiveTab] = useState<"notices" | "events" | "travel">("notices");
+  const [activeTab, setActiveTab] = useState<"notices" | "events">("notices");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal States
   const [showPostModal, setShowPostModal] = useState(false);
-  const [showTravelModal, setShowTravelModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Forms
@@ -28,14 +27,6 @@ function AnnouncementsContent() {
     title: "",
     category: "Campus Notice",
     body: "",
-  });
-
-  const [travelForm, setTravelForm] = useState({
-    purpose: "",
-    destination: "",
-    fromDate: new Date().toISOString().split("T")[0],
-    toDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    estimatedCost: 15000,
   });
 
   const fetchEngageData = useCallback(async () => {
@@ -100,27 +91,6 @@ function AnnouncementsContent() {
     }
   };
 
-  const handleSubmitTravel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await engageService.submitTravelRequest(travelForm);
-      toast.success("Travel booking request submitted successfully!");
-      setShowTravelModal(false);
-      setTravelForm({
-        purpose: "",
-        destination: "",
-        fromDate: new Date().toISOString().split("T")[0],
-        toDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        estimatedCost: 15000,
-      });
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to submit travel request.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -142,16 +112,6 @@ function AnnouncementsContent() {
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setShowTravelModal(true)}
-          >
-            <Plane className="h-4 w-4" />
-            <span>Travel Booking</span>
-          </Button>
 
           {canPost && (
             <Button

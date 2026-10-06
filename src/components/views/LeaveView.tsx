@@ -257,8 +257,12 @@ function LeaveContent() {
         date: permissionForm.date,
         fromTime: permissionForm.fromTime,
         toTime: permissionForm.toTime,
-        durationHours: 1, // 1 hour standard permission
+        startTime: permissionForm.fromTime,
+        endTime: permissionForm.toTime,
+        durationHours: 1.0, // 1 hour standard permission
+        duration: 1.0,
         reason: permissionForm.reason,
+        approvers: permissionAssignedRoles,
         assignedRoles: permissionAssignedRoles,
         approverRole: permissionAssignedRoles.join(", "),
         sendNotification: permissionSendNotification,

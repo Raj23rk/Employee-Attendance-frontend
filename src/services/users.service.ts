@@ -45,6 +45,26 @@ export const usersService = {
     return response.data;
   },
 
+  // 3.2.1 Upload Profile Picture / Avatar (POST /users/me/avatar)
+  async uploadAvatar(fileOrFormDataOrPayload: File | FormData | { avatarUrl: string }) {
+    if (fileOrFormDataOrPayload instanceof FormData) {
+      const response = await apiClient.post("/users/me/avatar", fileOrFormDataOrPayload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } else if (fileOrFormDataOrPayload instanceof File) {
+      const formData = new FormData();
+      formData.append("avatar", fileOrFormDataOrPayload);
+      const response = await apiClient.post("/users/me/avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } else {
+      const response = await apiClient.post("/users/me/avatar", fileOrFormDataOrPayload);
+      return response.data;
+    }
+  },
+
   // 3.3 Change Password (Self-service: oldPassword + newPassword)
   async changePassword(oldPassword: string, newPassword: string) {
     const response = await apiClient.put("/users/me/change-password", {
