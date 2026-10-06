@@ -200,24 +200,65 @@ function EmployeesContent() {
       const data = res?.data || res;
       if (Array.isArray(data)) {
         const formatted = data.map((emp: any) => {
-          const rawCheckin =
+          const rawCheckinCandidate =
             emp.rawCheckin ||
             emp.rawCheckInTime ||
             emp.todayAttendance?.rawCheckInTime ||
             emp.todayAttendance?.checkInTime ||
             emp.checkin;
 
-          const rawCheckout =
+          const rawCheckoutCandidate =
             emp.rawCheckout ||
             emp.rawCheckOutTime ||
             emp.todayAttendance?.rawCheckOutTime ||
             emp.todayAttendance?.checkOutTime ||
             emp.checkout;
 
-          const hasCheckIn = !!rawCheckin && rawCheckin !== "-" && rawCheckin !== "--:--";
-          const hasCheckOut = !!rawCheckout && rawCheckout !== "-" && rawCheckout !== "--:--";
+          let rawCheckin =
+            rawCheckinCandidate &&
+            rawCheckinCandidate !== "-" &&
+            rawCheckinCandidate !== "--:--" &&
+            rawCheckinCandidate !== "null" &&
+            rawCheckinCandidate !== "undefined"
+              ? rawCheckinCandidate
+              : null;
 
-          const isCheckedIn = hasCheckIn && !hasCheckOut;
+          let rawCheckout =
+            rawCheckoutCandidate &&
+            rawCheckoutCandidate !== "-" &&
+            rawCheckoutCandidate !== "--:--" &&
+            rawCheckoutCandidate !== "null" &&
+            rawCheckoutCandidate !== "undefined"
+              ? rawCheckoutCandidate
+              : null;
+
+          let hasCheckIn = !!rawCheckin;
+          let hasCheckOut = !!rawCheckout;
+
+          // If both exist, compare timestamps to see if check-in was after check-out
+          if (hasCheckIn && hasCheckOut) {
+            const inTimeMs = new Date(rawCheckin).getTime();
+            const outTimeMs = new Date(rawCheckout).getTime();
+            if (!isNaN(inTimeMs) && !isNaN(outTimeMs) && inTimeMs > outTimeMs) {
+              // Latest action was check-in; previous checkout is stale
+              hasCheckOut = false;
+              rawCheckout = null;
+            }
+          }
+
+          const isCheckedIn =
+            emp.isCheckedIn === true ||
+            emp.todayAttendance?.isCheckedIn === true ||
+            (hasCheckIn && !hasCheckOut) ||
+            emp.todayStatus === "PRESENT" ||
+            emp.todayAttendance?.status === "PRESENT" ||
+            emp.todayAttendance?.status === "LATE";
+
+          // If checked in, clear any lingering checkout
+          if (isCheckedIn) {
+            hasCheckOut = false;
+            rawCheckout = null;
+          }
 
           const checkInTime = hasCheckIn ? rawCheckin : "--:--";
           const checkOutTime = hasCheckOut ? rawCheckout : "--:--";
@@ -226,7 +267,7 @@ function EmployeesContent() {
             emp.todayStatus ||
             emp.status ||
             emp.todayAttendance?.status ||
-            (hasCheckIn ? "PRESENT" : "ABSENT");
+            (isCheckedIn ? "PRESENT" : "ABSENT");
 
           return {
             ...emp,
@@ -877,16 +918,17 @@ function EmployeesContent() {
                     const doj = member.dateOfJoining || "2023-01-15";
                     const isCheckedIn = member.todayAttendance?.isCheckedIn;
                     const hasCheckOut =
-                      (member.todayAttendance as any)?.hasCheckOut ||
-                      (member.todayAttendance?.checkOutTime &&
-                        member.todayAttendance.checkOutTime !== "--:--" &&
-                        member.todayAttendance.checkOutTime !== "-");
+                      !isCheckedIn &&
+                      ((member.todayAttendance as any)?.hasCheckOut ||
+                        (member.todayAttendance?.checkOutTime &&
+                          member.todayAttendance.checkOutTime !== "--:--" &&
+                          member.todayAttendance.checkOutTime !== "-"));
                     const inTime =
                       member.todayAttendance?.checkInTime && member.todayAttendance.checkInTime !== "--:--"
                         ? formatTime(member.todayAttendance.checkInTime)
                         : "--:--";
                     const outTime =
-                      member.todayAttendance?.checkOutTime && member.todayAttendance.checkOutTime !== "--:--"
+                      hasCheckOut && member.todayAttendance?.checkOutTime && member.todayAttendance.checkOutTime !== "--:--"
                         ? formatTime(member.todayAttendance.checkOutTime)
                         : "--:--";
                     const status = member.todayAttendance?.status || "PRESENT";

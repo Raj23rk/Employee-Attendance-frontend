@@ -226,26 +226,30 @@ export function CheckInOutWidget({
   // Sync with API & localStorage
   const syncTodayStatus = useCallback(async () => {
     const todayStr = new Date().toISOString().split("T")[0];
+    const userKey = (user as any)?._id || user?.id || user?.employeeId || user?.email || "current_user";
 
-    // 1. Initial immediate restore from local storage
+    // 1. Initial immediate restore from user-scoped local storage
     if (typeof window !== "undefined") {
-      const storedDate = localStorage.getItem("wg_punch_date");
-      const storedInTime = localStorage.getItem("wg_checkin_time");
-      const storedTimestamp = localStorage.getItem("wg_checkin_timestamp");
-      const storedOutTime = localStorage.getItem("wg_checkout_time");
+      const storedDate = localStorage.getItem(`wg_punch_date_${userKey}`) || localStorage.getItem("wg_punch_date");
+      const storedInTime = localStorage.getItem(`wg_checkin_time_${userKey}`) || localStorage.getItem("wg_checkin_time");
+      const storedTimestamp = localStorage.getItem(`wg_checkin_timestamp_${userKey}`) || localStorage.getItem("wg_checkin_timestamp");
+      const storedOutTime = localStorage.getItem(`wg_checkout_time_${userKey}`) || localStorage.getItem("wg_checkout_time");
 
       if (storedDate === todayStr) {
-        if (storedInTime && !storedOutTime) {
+        const inMs = storedTimestamp ? Number(storedTimestamp) : storedInTime ? new Date(storedInTime).getTime() : 0;
+        const outMs = storedOutTime && storedOutTime !== "--:--" && storedOutTime !== "-" ? new Date(storedOutTime).getTime() : 0;
+
+        if (storedInTime && (!storedOutTime || storedOutTime === "--:--" || storedOutTime === "-" || (!isNaN(inMs) && !isNaN(outMs) && inMs > outMs))) {
           setIsCheckedIn(true);
           setCheckInTime(storedInTime);
-          const startMs = storedTimestamp ? Number(storedTimestamp) : new Date(storedInTime).getTime();
-          if (!isNaN(startMs) && startMs > 0) {
-            checkInTimestampRef.current = startMs;
-            setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+          setCheckOutTime(null);
+          if (!isNaN(inMs) && inMs > 0) {
+            checkInTimestampRef.current = inMs;
+            setElapsedSeconds(Math.max(0, Math.floor((Date.now() - inMs) / 1000)));
           }
-        } else if (storedOutTime) {
+        } else if (storedOutTime && storedOutTime !== "--:--" && storedOutTime !== "-") {
           setIsCheckedIn(false);
-          setCheckInTime(storedInTime);
+          setCheckInTime(storedInTime || null);
           setCheckOutTime(storedOutTime);
           checkInTimestampRef.current = null;
         }
@@ -264,7 +268,7 @@ export function CheckInOutWidget({
           data.status === "LATE";
 
         // Prioritize ISO UTC timestamp from rawCheckInTime or record so IST conversion is exact (09:41 AM)
-        const rawIn =
+        const rawInCandidate =
           data.rawCheckInTime ||
           data.record?.checkInTime ||
           (typeof data.startedAt === "number"
@@ -272,10 +276,28 @@ export function CheckInOutWidget({
             : null) ||
           data.checkInTime;
 
-        const rawOut =
+        const rawOutCandidate =
           data.rawCheckOutTime ||
           data.record?.checkOutTime ||
           data.checkOutTime;
+
+        const rawIn =
+          rawInCandidate &&
+          rawInCandidate !== "--:--" &&
+          rawInCandidate !== "-" &&
+          rawInCandidate !== "null" &&
+          rawInCandidate !== "undefined"
+            ? rawInCandidate
+            : null;
+
+        const rawOut =
+          rawOutCandidate &&
+          rawOutCandidate !== "--:--" &&
+          rawOutCandidate !== "-" &&
+          rawOutCandidate !== "null" &&
+          rawOutCandidate !== "undefined"
+            ? rawOutCandidate
+            : null;
 
         let startMs: number | null = null;
         if (typeof data.startedAt === "number" && data.startedAt > 0) {
@@ -287,7 +309,19 @@ export function CheckInOutWidget({
           }
         }
 
-        if (checked && !rawOut) {
+        let outMs: number | null = null;
+        if (rawOut) {
+          const parsed = new Date(rawOut).getTime();
+          if (!isNaN(parsed) && parsed > 0) {
+            outMs = parsed;
+          }
+        }
+
+        // If checkIn happened after checkout (e.g. checked in again), checkout is obsolete
+        const isCheckoutValid = !!rawOut && (!startMs || !outMs || outMs >= startMs);
+        const hasActiveCheckIn = (checked || !!rawIn) && !isCheckoutValid;
+
+        if (hasActiveCheckIn) {
           setIsCheckedIn(true);
           setCheckInTime(rawIn);
           setCheckOutTime(null);
@@ -295,21 +329,22 @@ export function CheckInOutWidget({
             checkInTimestampRef.current = startMs;
             setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
             if (typeof window !== "undefined") {
-              localStorage.setItem("wg_punch_date", todayStr);
-              localStorage.setItem("wg_checkin_time", rawIn);
-              localStorage.setItem("wg_checkin_timestamp", String(startMs));
+              localStorage.setItem(`wg_punch_date_${userKey}`, todayStr);
+              localStorage.setItem(`wg_checkin_time_${userKey}`, rawIn || new Date(startMs).toISOString());
+              localStorage.setItem(`wg_checkin_timestamp_${userKey}`, String(startMs));
+              localStorage.removeItem(`wg_checkout_time_${userKey}`);
               localStorage.removeItem("wg_checkout_time");
             }
           }
-        } else if (rawOut || (!checked && rawIn)) {
+        } else if (isCheckoutValid || (!checked && rawIn)) {
           setIsCheckedIn(false);
           setCheckInTime(rawIn || null);
           setCheckOutTime(rawOut || null);
           checkInTimestampRef.current = null;
           if (typeof window !== "undefined") {
-            localStorage.setItem("wg_punch_date", todayStr);
-            if (rawIn) localStorage.setItem("wg_checkin_time", rawIn);
-            if (rawOut) localStorage.setItem("wg_checkout_time", rawOut);
+            localStorage.setItem(`wg_punch_date_${userKey}`, todayStr);
+            if (rawIn) localStorage.setItem(`wg_checkin_time_${userKey}`, rawIn);
+            if (rawOut) localStorage.setItem(`wg_checkout_time_${userKey}`, rawOut);
           }
         } else {
           setIsCheckedIn(false);
@@ -324,7 +359,7 @@ export function CheckInOutWidget({
     } catch {
       // Offline fallback is handled from localStorage
     }
-  }, [onStatusChange]);
+  }, [onStatusChange, user]);
 
   useEffect(() => {
     syncTodayStatus();
@@ -423,10 +458,12 @@ export function CheckInOutWidget({
       checkInTimestampRef.current = startMs;
       setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
 
+      const userKey = (user as any)?._id || user?.id || user?.employeeId || user?.email || "current_user";
       if (typeof window !== "undefined") {
-        localStorage.setItem("wg_punch_date", todayStr);
-        localStorage.setItem("wg_checkin_time", rawIn);
-        localStorage.setItem("wg_checkin_timestamp", String(startMs));
+        localStorage.setItem(`wg_punch_date_${userKey}`, todayStr);
+        localStorage.setItem(`wg_checkin_time_${userKey}`, rawIn);
+        localStorage.setItem(`wg_checkin_timestamp_${userKey}`, String(startMs));
+        localStorage.removeItem(`wg_checkout_time_${userKey}`);
         localStorage.removeItem("wg_checkout_time");
       }
 
@@ -440,10 +477,12 @@ export function CheckInOutWidget({
       checkInTimestampRef.current = nowMs;
       setElapsedSeconds(0);
 
+      const userKey = (user as any)?._id || user?.id || user?.employeeId || user?.email || "current_user";
       if (typeof window !== "undefined") {
-        localStorage.setItem("wg_punch_date", todayStr);
-        localStorage.setItem("wg_checkin_time", nowIso);
-        localStorage.setItem("wg_checkin_timestamp", String(nowMs));
+        localStorage.setItem(`wg_punch_date_${userKey}`, todayStr);
+        localStorage.setItem(`wg_checkin_time_${userKey}`, nowIso);
+        localStorage.setItem(`wg_checkin_timestamp_${userKey}`, String(nowMs));
+        localStorage.removeItem(`wg_checkout_time_${userKey}`);
         localStorage.removeItem("wg_checkout_time");
       }
       setStatusMessage(`Checked in (Saved locally)${lateNotice}`);
@@ -468,6 +507,7 @@ export function CheckInOutWidget({
     setStatusMessage(null);
     const nowIso = now.toISOString();
     const todayStr = nowIso.split("T")[0];
+    const userKey = (user as any)?._id || user?.id || user?.employeeId || user?.email || "current_user";
 
     try {
       const targetBranchId = activeBranch?.id || "assigned-branch";
@@ -494,8 +534,8 @@ export function CheckInOutWidget({
       checkInTimestampRef.current = null;
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("wg_punch_date", todayStr);
-        localStorage.setItem("wg_checkout_time", rawOut);
+        localStorage.setItem(`wg_punch_date_${userKey}`, todayStr);
+        localStorage.setItem(`wg_checkout_time_${userKey}`, rawOut);
       }
 
       setStatusMessage("Checked out successfully. Have a great evening!");
@@ -507,8 +547,8 @@ export function CheckInOutWidget({
       checkInTimestampRef.current = null;
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("wg_punch_date", todayStr);
-        localStorage.setItem("wg_checkout_time", nowIso);
+        localStorage.setItem(`wg_punch_date_${userKey}`, todayStr);
+        localStorage.setItem(`wg_checkout_time_${userKey}`, nowIso);
       }
       setStatusMessage("Checked out (Saved locally)");
       setTimeout(() => setStatusMessage(null), 5000);

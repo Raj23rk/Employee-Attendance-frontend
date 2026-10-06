@@ -1,10 +1,12 @@
 import apiClient from "@/lib/api-client";
 
 export interface ApplyLeavePayload {
-  leaveType: string; // "CASUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID"
+  leaveType: string; // "CASUAL" | "HALF_DAY" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "LOSS_OF_PAY"
   fromDate: string;  // "2026-10-01"
   toDate: string;    // "2026-10-02"
-  days: number;
+  days?: number;
+  isHalfDay?: boolean;
+  halfDaySession?: "FIRST_HALF" | "SECOND_HALF" | "MORNING" | "AFTERNOON";
   reason: string;
   assignedRoles?: string[]; // e.g. ["HR", "MD", "GM", "MANAGER"]
   approverRole?: string;
