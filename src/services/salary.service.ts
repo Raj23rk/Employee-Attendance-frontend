@@ -17,11 +17,11 @@ export interface StaffSalaryRecord {
   panNumber?: string;
   uanNumber?: string;
   monthlyHistory?: Record<string, number | string>; // e.g. { "JAN": "NIL", "MAY": 19000, "SEP": 19000 }
-  increments?: SalaryIncrement[];
+  increments?: StaffSalaryIncrement[];
   isActive: boolean;
 }
 
-export interface SalaryIncrement {
+export interface StaffSalaryIncrement {
   id: string;
   staffId: string;
   staffName: string;
@@ -664,7 +664,7 @@ export const salaryService = {
     effectiveDate: string;
     reason: string;
     approvedBy: "HR" | "GM" | "MD" | "CEO" | "ADMIN" | string;
-  }): Promise<{ success: boolean; data: SalaryIncrement; updatedStaff: StaffSalaryRecord }> {
+  }): Promise<{ success: boolean; data: StaffSalaryIncrement; updatedStaff: StaffSalaryRecord }> {
     try {
       const response = await apiClient.post("/salary/increments", payload);
       if (response?.data) return response.data;
@@ -684,7 +684,7 @@ export const salaryService = {
     const incAmount = Number(payload.incrementAmount) || newSalary - prevSalary;
     const pct = prevSalary > 0 ? Number(((incAmount / prevSalary) * 100).toFixed(2)) : 0;
 
-    const newIncrement: SalaryIncrement = {
+    const newIncrement: StaffSalaryIncrement = {
       id: `INC-${Date.now()}`,
       staffId: staff.id,
       staffName: staff.name,
@@ -711,7 +711,7 @@ export const salaryService = {
       localStorage.setItem(LOCAL_STORAGE_STAFF_KEY, JSON.stringify(staffList));
 
       const storedInc = localStorage.getItem(LOCAL_STORAGE_INCREMENTS_KEY);
-      const allInc: SalaryIncrement[] = storedInc ? JSON.parse(storedInc) : [];
+      const allInc: StaffSalaryIncrement[] = storedInc ? JSON.parse(storedInc) : [];
       allInc.unshift(newIncrement);
       localStorage.setItem(LOCAL_STORAGE_INCREMENTS_KEY, JSON.stringify(allInc));
     }
@@ -722,7 +722,7 @@ export const salaryService = {
   /**
    * 4. CRUD: Get all increments history
    */
-  async getAllIncrements(staffId?: string): Promise<SalaryIncrement[]> {
+  async getAllIncrements(staffId?: string): Promise<StaffSalaryIncrement[]> {
     try {
       const response = await apiClient.get("/salary/increments", { params: { staffId } });
       if (response?.data?.data) return response.data.data;
@@ -732,7 +732,7 @@ export const salaryService = {
 
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(LOCAL_STORAGE_INCREMENTS_KEY);
-      let list: SalaryIncrement[] = stored ? JSON.parse(stored) : [];
+      let list: StaffSalaryIncrement[] = stored ? JSON.parse(stored) : [];
       if (staffId) {
         list = list.filter((i) => i.staffId === staffId);
       }
@@ -746,8 +746,8 @@ export const salaryService = {
    */
   async updateSalaryIncrement(
     incrementId: string,
-    payload: Partial<SalaryIncrement>
-  ): Promise<{ success: boolean; data: SalaryIncrement }> {
+    payload: Partial<StaffSalaryIncrement>
+  ): Promise<{ success: boolean; data: StaffSalaryIncrement }> {
     try {
       const response = await apiClient.put(`/salary/increments/${incrementId}`, payload);
       if (response?.data) return response.data;
@@ -757,7 +757,7 @@ export const salaryService = {
 
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(LOCAL_STORAGE_INCREMENTS_KEY);
-      let list: SalaryIncrement[] = stored ? JSON.parse(stored) : [];
+      let list: StaffSalaryIncrement[] = stored ? JSON.parse(stored) : [];
       const idx = list.findIndex((i) => i.id === incrementId);
       if (idx !== -1) {
         list[idx] = { ...list[idx], ...payload };
@@ -781,7 +781,7 @@ export const salaryService = {
 
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(LOCAL_STORAGE_INCREMENTS_KEY);
-      let list: SalaryIncrement[] = stored ? JSON.parse(stored) : [];
+      let list: StaffSalaryIncrement[] = stored ? JSON.parse(stored) : [];
       const target = list.find((i) => i.id === incrementId);
       if (target) {
         list = list.filter((i) => i.id !== incrementId);

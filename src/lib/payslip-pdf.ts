@@ -1,4 +1,4 @@
-import { AttendanceDeductionBreakdown, StaffSalaryRecord, SalaryIncrement } from "@/services/salary.service";
+import { AttendanceDeductionBreakdown, StaffSalaryRecord, StaffSalaryIncrement } from "@/services/salary.service";
 
 /**
  * Format currency to INR style: ₹ 19,000.00
