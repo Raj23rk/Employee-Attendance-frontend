@@ -107,15 +107,6 @@ export function CheckInOutWidget({
 
   // Monthly Policy Metrics
   const [monthlyLateCount, setMonthlyLateCount] = useState<number>(0);
-  const [permissionHoursUsed, setPermissionHoursUsed] = useState<number>(0);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [permissionForm, setPermissionForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    fromTime: "10:00",
-    toTime: "11:00",
-    durationHours: 1.0,
-    reason: "",
-  });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const checkInTimestampRef = useRef<number | null>(null);
@@ -557,30 +548,6 @@ export function CheckInOutWidget({
     }
   };
 
-  const handleApplyPermission = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newTotalPermission = permissionHoursUsed + permissionForm.durationHours;
-    try {
-      await attendanceService.submitPermissionRequest(permissionForm);
-      setPermissionHoursUsed(newTotalPermission);
-      if (newTotalPermission > 2.0) {
-        toast.warning(
-          `Permission submitted! Warning: Total permission used this month (${newTotalPermission.toFixed(
-            1
-          )}h) exceeds 2 hours. Half-day salary deduction will be applied according to policy.`
-        );
-      } else {
-        toast.success("Permission application approved and logged.");
-      }
-      setShowPermissionModal(false);
-    } catch {
-      setPermissionHoursUsed(newTotalPermission);
-      setShowPermissionModal(false);
-      toast.info("Permission logged locally.");
-    }
-  };
-
-
   // ── VARIANT: BANNER (Header Navigation Bar) ──
   if (variant === "banner") {
     return (
@@ -693,16 +660,8 @@ export function CheckInOutWidget({
           </div>
         </div>
 
-        {/* Status Indicator & Permissions Button */}
+        {/* Status Indicator */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowPermissionModal(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            <Calendar className="h-3.5 w-3.5 text-slate-500" />
-            <span>Permission Tracker ({permissionHoursUsed}h / 2h)</span>
-          </button>
-
           {isCheckedIn ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -823,28 +782,18 @@ export function CheckInOutWidget({
         </div>
 
         {/* Metric 2: Monthly Permission Allowance */}
-        <div
-          className={`rounded-2xl p-3 border text-xs ${
-            permissionHoursUsed > 2.0
-              ? "bg-red-50 border-red-200 text-red-900"
-              : "bg-slate-50 border-slate-200 text-slate-800"
-          }`}
-        >
+        <div className="rounded-2xl p-3 border border-slate-200 bg-slate-50 text-xs text-slate-800">
           <div className="flex items-center justify-between font-bold">
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-blue-600" />
               Monthly Permission
             </span>
             <span className="rounded-md px-1.5 py-0.5 text-[10px] font-extrabold bg-white shadow-xs">
-              {permissionHoursUsed.toFixed(1)}h / 2.0h Max
+              Max 2.0h / Month
             </span>
           </div>
           <p className="mt-1 text-[11px] text-slate-600">
-            {permissionHoursUsed > 2.0 ? (
-              <strong className="text-red-700">⚠️ Exceeded 2h: Half-Day salary deduction applied!</strong>
-            ) : (
-              "2 hours total allowed per month. Extra permission triggers Half-Day deduction."
-            )}
+            2 hours total allowed per month. Extra permission triggers Half-Day deduction.
           </p>
         </div>
 
@@ -864,110 +813,6 @@ export function CheckInOutWidget({
           </p>
         </div>
       </div>
-
-      {/* Permission Request Modal */}
-      {showPermissionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-heading text-base font-bold text-[#12173A]">
-                  Request Work Permission
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Monthly quota: 2.0 hours. You have used {permissionHoursUsed}h so far.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowPermissionModal(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleApplyPermission} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={permissionForm.date}
-                  onChange={(e) => setPermissionForm({ ...permissionForm, date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700">From Time</label>
-                  <input
-                    type="time"
-                    required
-                    value={permissionForm.fromTime}
-                    onChange={(e) => setPermissionForm({ ...permissionForm, fromTime: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700">To Time</label>
-                  <input
-                    type="time"
-                    required
-                    value={permissionForm.toTime}
-                    onChange={(e) => setPermissionForm({ ...permissionForm, toTime: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700">Duration (Hours)</label>
-                <select
-                  value={permissionForm.durationHours}
-                  onChange={(e) =>
-                    setPermissionForm({ ...permissionForm, durationHours: parseFloat(e.target.value) })
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none bg-white"
-                >
-                  <option value={0.5}>0.5 Hour (30 mins)</option>
-                  <option value={1.0}>1.0 Hour (60 mins)</option>
-                  <option value={1.5}>1.5 Hours (90 mins)</option>
-                  <option value={2.0}>2.0 Hours (120 mins - Full Monthly Allowance)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700">Reason</label>
-                <textarea
-                  rows={2}
-                  required
-                  placeholder="State reason for permission during shift hours..."
-                  value={permissionForm.reason}
-                  onChange={(e) => setPermissionForm({ ...permissionForm, reason: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#EA6118] focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowPermissionModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-[#EA6118] px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 shadow-sm"
-                >
-                  Submit Permission
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

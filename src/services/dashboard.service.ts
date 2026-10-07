@@ -42,15 +42,17 @@ export const dashboardService = {
     return response.data;
   },
 
-  // 6.7 HR/CEO Employee Details Dashboard with branch filter, DOJ, checkin, checkout
-  async getHrCeoEmployees(params?: { branch?: string; search?: string; page?: number; limit?: number }) {
+  // 6.7 HR/CEO Employee Details Dashboard with date, branch filter, DOJ, checkin, checkout
+  async getHrCeoEmployees(params?: { date?: string; branch?: string; search?: string; page?: number; limit?: number }) {
     const response = await apiClient.get("/dashboard/hr-ceo/employees", { params });
     return response.data;
   },
 
-  // 6.8 HR/CEO Full details popup (Bank account info, user details, checkin, active state)
-  async getEmployeePopupDetails(employeeId: string) {
-    const response = await apiClient.get(`/dashboard/hr-ceo/employees/${employeeId}/popup`);
+  // 6.8 HR/CEO Full details popup for specific date
+  async getEmployeePopupDetails(employeeId: string, date?: string) {
+    const response = await apiClient.get(`/dashboard/hr-ceo/employees/${employeeId}/popup`, {
+      params: date ? { date } : undefined,
+    });
     return response.data;
   },
 

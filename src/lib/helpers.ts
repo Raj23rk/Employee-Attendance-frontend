@@ -15,9 +15,18 @@ export function safeJsonParse<T>(value: string | null | undefined, fallback: T):
   }
 }
 
-/** Format a number as Indian Rupees (₹) */
-export function formatCurrency(amount: number): string {
-  return "₹" + Number(amount).toLocaleString("en-IN");
+/** Format a number as Indian Rupees (₹) safely with decimal precision */
+export function formatCurrency(amount?: number | null): string {
+  const n = Number(amount);
+  if (isNaN(n)) return "₹0";
+  const hasDecimals = n % 1 !== 0;
+  return (
+    "₹" +
+    n.toLocaleString("en-IN", {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 /** Get initials from a full name (max 2 chars) */

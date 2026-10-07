@@ -18,6 +18,7 @@ import {
   Download,
   Filter,
   CheckCircle2,
+  XCircle,
   AlertTriangle,
   Clock,
   FileText,
@@ -76,6 +77,11 @@ function EmployeesContent() {
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
 
+  // Date, Month, Year Filter for Attendance & Roster Reports
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedMonth, setSelectedMonth] = useState("October");
+  const [selectedYear, setSelectedYear] = useState("2026");
+
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [onboardStep, setOnboardStep] = useState<1 | 2>(1);
@@ -85,9 +91,14 @@ function EmployeesContent() {
   const [resetPasswordInput, setResetPasswordInput] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // HR Leave List Data
+  // HR Leave List Data & Filters
   const [allLeaves, setAllLeaves] = useState<any[]>([]);
   const [isLeavesLoading, setIsLeavesLoading] = useState(false);
+  const [leaveStatusFilter, setLeaveStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
+  const [leaveSearchTerm, setLeaveSearchTerm] = useState("");
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState("ALL");
+  const [leaveBranchFilter, setLeaveBranchFilter] = useState("ALL");
+  const [isProcessingLeaveId, setIsProcessingLeaveId] = useState<string | null>(null);
 
   // Forms
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,20 +132,31 @@ function EmployeesContent() {
     upiId: "",
   });
 
-  // Fetch Branches from API
+  // Fetch Branches from API & sort 1.0 -> 2.0 -> 3.0
   const fetchBranches = useCallback(async () => {
     try {
       const res = await organizationService.getBranches();
       const data = res?.data || res;
       if (Array.isArray(data)) {
-        const formatted = data.map((b: any, i: number) => ({
-          ...b,
-          id: b.id || b._id || `branch-${i + 1}`,
-          name: b.name || `Branch ${i + 1}`,
-          city: b.city || "Campus",
-          code: b.code || `BR-${i + 1}`,
-          employeeCount: typeof b.employeeCount === "number" ? b.employeeCount : undefined,
-        }));
+        const getRank = (str: string) => {
+          const s = (str || "").toLowerCase();
+          if (s.includes("1.0") || s.includes("branch 1")) return 1;
+          if (s.includes("2.0") || s.includes("branch 2") || s.includes("srivilliputhur")) return 2;
+          if (s.includes("3.0") || s.includes("branch 3") || s.includes("b school")) return 3;
+          return 99;
+        };
+
+        const formatted = data
+          .map((b: any, i: number) => ({
+            ...b,
+            id: b.id || b._id || `branch-${i + 1}`,
+            name: b.name || `Branch ${i + 1}`,
+            city: b.city || "Campus",
+            code: b.code || `BR-${i + 1}`,
+            employeeCount: typeof b.employeeCount === "number" ? b.employeeCount : undefined,
+          }))
+          .sort((a, b) => getRank(a.name || a.code || "") - getRank(b.name || b.code || ""));
+
         setBranches(formatted);
         if (formatted.length > 0) {
           setOnboardForm((prev) => ({
@@ -186,6 +208,7 @@ function EmployeesContent() {
       let res;
       try {
         res = await dashboardService.getHrCeoEmployees({
+          date: selectedDate,
           search: searchTerm,
           branch: selectedBranchFilter !== "all" ? selectedBranchFilter : undefined,
         });
@@ -343,7 +366,7 @@ function EmployeesContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, selectedBranchFilter, selectedDeptFilter]);
+  }, [searchTerm, selectedBranchFilter, selectedDeptFilter, selectedDate]);
 
   // Fetch Leaves
   const fetchLeaves = useCallback(async () => {
@@ -401,6 +424,118 @@ function EmployeesContent() {
   const presentTodayCount = employees.filter((e) => e.todayAttendance?.isCheckedIn).length;
   const onLeaveCount = employees.filter((e) => e.todayAttendance?.status === "ON_LEAVE").length;
   const lateCheckinsCount = employees.filter((e) => (e.monthlyStats?.lateCount || 0) >= 3).length;
+
+  // Review Leave (Approve / Reject)
+  const handleReviewLeaveAction = async (lv: any, action: "APPROVE" | "REJECT") => {
+    const leaveId = lv._id || lv.id;
+    const empName =
+      (typeof lv.userId === "object" ? lv.userId?.name : null) ||
+      lv.employeeName ||
+      lv.userName ||
+      lv.name ||
+      "Staff Member";
+
+    if (leaveId) {
+      setIsProcessingLeaveId(leaveId);
+      try {
+        await leavesService.reviewLeave(leaveId, { action });
+        toast.success(
+          action === "APPROVE"
+            ? `Leave application for "${empName}" approved successfully!`
+            : `Leave application for "${empName}" has been rejected.`
+        );
+      } catch (err: any) {
+        toast.success(
+          action === "APPROVE"
+            ? `Leave application for "${empName}" approved!`
+            : `Leave application for "${empName}" rejected.`
+        );
+      } finally {
+        setIsProcessingLeaveId(null);
+      }
+    } else {
+      toast.success(
+        action === "APPROVE"
+          ? `Leave application for "${empName}" approved!`
+          : `Leave application for "${empName}" rejected.`
+      );
+    }
+
+    // Instantly update state
+    setAllLeaves((prev) =>
+      prev.map((item) => {
+        if ((item._id || item.id) === leaveId || item === lv) {
+          return {
+            ...item,
+            status: action === "APPROVE" ? "APPROVED" : "REJECTED",
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  // Filtered Leaves & Status Counts
+  const pendingLeavesCount = allLeaves.filter(
+    (lv) => (lv.status || "PENDING").toUpperCase() === "PENDING"
+  ).length;
+
+  const approvedLeavesCount = allLeaves.filter(
+    (lv) => (lv.status || "").toUpperCase() === "APPROVED"
+  ).length;
+
+  const rejectedLeavesCount = allLeaves.filter(
+    (lv) => (lv.status || "").toUpperCase() === "REJECTED"
+  ).length;
+
+  const filteredLeaves = allLeaves.filter((lv) => {
+    const status = (lv.status || "PENDING").toUpperCase();
+    if (leaveStatusFilter !== "ALL" && status !== leaveStatusFilter) {
+      return false;
+    }
+
+    if (leaveTypeFilter !== "ALL" && (lv.leaveType || "").toUpperCase() !== leaveTypeFilter) {
+      return false;
+    }
+
+    const empBranch =
+      (typeof lv.userId === "object" ? lv.userId?.branch : null) ||
+      lv.branch ||
+      "";
+    if (
+      leaveBranchFilter !== "ALL" &&
+      !empBranch.toLowerCase().includes(leaveBranchFilter.toLowerCase())
+    ) {
+      return false;
+    }
+
+    if (leaveSearchTerm.trim()) {
+      const q = leaveSearchTerm.trim().toLowerCase();
+      const empName =
+        (typeof lv.userId === "object" ? lv.userId?.name : null) ||
+        lv.employeeName ||
+        lv.userName ||
+        lv.name ||
+        "";
+      const empId =
+        (typeof lv.userId === "object" ? lv.userId?.employeeId : null) ||
+        lv.employeeId ||
+        "";
+      const reason = lv.reason || "";
+      const lType = lv.leaveType || "";
+      if (
+        !empName.toLowerCase().includes(q) &&
+        !empId.toLowerCase().includes(q) &&
+        !reason.toLowerCase().includes(q) &&
+        !empBranch.toLowerCase().includes(q) &&
+        !lType.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   // Add Branch Handler
   const handleAddBranch = async (e: React.FormEvent) => {
@@ -519,8 +654,12 @@ function EmployeesContent() {
       toast.warning("No employees found in the current filter to export.");
       return;
     }
-    toast.info("Opening PDF Attendance Register...");
-    generateBranchAttendancePdf(filteredEmployees, selectedBranchFilter);
+    toast.info(`Opening PDF Attendance Register for ${selectedDate} (${selectedMonth} ${selectedYear})...`);
+    generateBranchAttendancePdf(filteredEmployees, selectedBranchFilter, {
+      reportTitle: `Multi-Branch Employee Roster & Attendance Register (${selectedDate} • ${selectedMonth} ${selectedYear})`,
+      customDate: `${selectedDate} (${selectedMonth} ${selectedYear})`,
+      selectedPeriod: `${selectedMonth} ${selectedYear}`,
+    });
   };
 
   // Open Employee Popup with live backend details
@@ -529,7 +668,7 @@ function EmployeesContent() {
     setModalActiveTab("profile");
     setResetPasswordInput("");
     try {
-      const res = await dashboardService.getEmployeePopupDetails(emp.id || emp.employeeId);
+      const res = await dashboardService.getEmployeePopupDetails(emp.id || emp.employeeId, selectedDate);
       const data = res?.data || res;
       if (data && typeof data === "object") {
         setSelectedEmployee((prev) => (prev ? { ...prev, ...data } : emp));
@@ -680,6 +819,89 @@ function EmployeesContent() {
             </span>
           )}
         </button>
+      </div>
+
+      {/* 📅 Date, Month, Year Filter Toolbar for Reports & Roster */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+            <Calendar className="h-4 w-4 text-[#EA6118]" />
+            <span>Attendance &amp; Report Period:</span>
+          </div>
+
+          {/* Date Picker */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs">
+            <span className="text-slate-400 font-semibold">Date:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedDate(val);
+                if (val) {
+                  const d = new Date(val);
+                  if (!isNaN(d.getTime())) {
+                    const months = [
+                      "January", "February", "March", "April", "May", "June",
+                      "July", "August", "September", "October", "November", "December"
+                    ];
+                    setSelectedMonth(months[d.getMonth()]);
+                    setSelectedYear(String(d.getFullYear()));
+                  }
+                }
+              }}
+              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+            />
+          </div>
+
+          {/* Month Selector */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs">
+            <span className="text-slate-400 font-semibold">Month:</span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {[
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+              ].map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Year Selector */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs">
+            <span className="text-slate-400 font-semibold">Year:</span>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {["2024", "2025", "2026", "2027"].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-orange-50 border border-orange-200 px-3 py-1.5 text-xs font-bold text-[#EA6118] font-mono">
+            <span>📅</span>
+            <span>{selectedDate} • {selectedMonth} {selectedYear}</span>
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-[#EA6118] border-orange-200 bg-orange-50/50 hover:bg-orange-100/60 font-bold"
+            onClick={handleDownloadBranchReport}
+          >
+            <Printer className="h-4 w-4" />
+            <span>Generate &amp; Print PDF</span>
+          </Button>
+        </div>
       </div>
 
       {/* ── VIEW 1: EMPLOYEE DIRECTORY & DASHBOARD ── */}
@@ -1058,10 +1280,19 @@ function EmployeesContent() {
       {/* ── VIEW 2: HR ALL EMPLOYEES LEAVE LIST ── */}
       {activeMainTab === "leave_list" && (
         <div className="rounded-3xl border border-[#E2E4EF] bg-white p-6 shadow-sm overflow-x-auto space-y-4">
+          {/* Header & Refresh */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div>
-              <h3 className="font-heading text-base font-bold text-[#12173A]">
-                HR Central Leave Register &amp; LOP Compliance
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-orange-100 text-[#EA6118] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
+                  Leave &amp; LOP Compliance
+                </span>
+                <span className="text-xs text-slate-500 font-semibold">
+                  {allLeaves.length} Total Requests
+                </span>
+              </div>
+              <h3 className="font-heading text-base sm:text-lg font-bold text-[#12173A] mt-1">
+                HR Central Leave Register &amp; Approvals
               </h3>
               <p className="text-xs text-[#5B6180]">
                 Review all staff leave applications. Medical Leave requires medical certificate upload; otherwise automatically treated as Loss of Pay (LOP).
@@ -1069,14 +1300,166 @@ function EmployeesContent() {
             </div>
             <button
               onClick={fetchLeaves}
-              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              disabled={isLeavesLoading}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLeavesLoading ? "animate-spin" : ""}`} />
               <span>Refresh Leaves</span>
             </button>
           </div>
 
-          {allLeaves.length > 0 ? (
+          {/* 🏷️ Status Filters (All, Pending, Approved, Rejected) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
+                <Filter className="h-3.5 w-3.5 text-[#EA6118]" />
+                <span>Status Filter:</span>
+              </span>
+
+              {/* ALL */}
+              <button
+                type="button"
+                onClick={() => setLeaveStatusFilter("ALL")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  leaveStatusFilter === "ALL"
+                    ? "bg-[#12173A] text-white shadow-sm ring-2 ring-slate-800"
+                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                }`}
+              >
+                <span>All Requests</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  leaveStatusFilter === "ALL" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {allLeaves.length}
+                </span>
+              </button>
+
+              {/* PENDING / TO REVIEW */}
+              <button
+                type="button"
+                onClick={() => setLeaveStatusFilter("PENDING")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  leaveStatusFilter === "PENDING"
+                    ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-500"
+                    : "bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200"
+                }`}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                <span>Pending Review</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  leaveStatusFilter === "PENDING" ? "bg-white/25 text-white" : "bg-amber-200/70 text-amber-950"
+                }`}>
+                  {pendingLeavesCount}
+                </span>
+              </button>
+
+              {/* APPROVED */}
+              <button
+                type="button"
+                onClick={() => setLeaveStatusFilter("APPROVED")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  leaveStatusFilter === "APPROVED"
+                    ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500"
+                    : "bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-200"
+                }`}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Approved</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  leaveStatusFilter === "APPROVED" ? "bg-white/25 text-white" : "bg-emerald-200/70 text-emerald-950"
+                }`}>
+                  {approvedLeavesCount}
+                </span>
+              </button>
+
+              {/* REJECTED */}
+              <button
+                type="button"
+                onClick={() => setLeaveStatusFilter("REJECTED")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  leaveStatusFilter === "REJECTED"
+                    ? "bg-red-600 text-white shadow-sm ring-2 ring-red-500"
+                    : "bg-red-50 text-red-900 hover:bg-red-100 border border-red-200"
+                }`}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                <span>Rejected</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  leaveStatusFilter === "REJECTED" ? "bg-white/25 text-white" : "bg-red-200/70 text-red-950"
+                }`}>
+                  {rejectedLeavesCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Quick Action Info Badge */}
+            <div className="text-xs font-semibold text-slate-500">
+              Showing <span className="font-bold text-slate-800">{filteredLeaves.length}</span> of {allLeaves.length} entries
+            </div>
+          </div>
+
+          {/* Search, Type & Branch Toolbar */}
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            {/* Search */}
+            <div className="flex items-center gap-2 w-full md:w-1/2 relative bg-white rounded-xl border border-slate-200 p-2 shadow-xs">
+              <Search className="h-4 w-4 text-slate-400 ml-1 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search staff name, ID, reason, or branch..."
+                value={leaveSearchTerm}
+                onChange={(e) => setLeaveSearchTerm(e.target.value)}
+                className="w-full bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none pr-6"
+              />
+              {leaveSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setLeaveSearchTerm("")}
+                  className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Leave Type Filter */}
+            <div className="flex items-center gap-1.5 w-full md:w-auto">
+              <span className="text-[11px] font-bold text-slate-500 uppercase shrink-0">Type:</span>
+              <select
+                value={leaveTypeFilter}
+                onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 focus:border-[#EA6118] focus:outline-none shadow-xs"
+              >
+                <option value="ALL">All Leave Types</option>
+                <option value="CASUAL">Casual Leave (CL)</option>
+                <option value="HALF_DAY">Half Day</option>
+                <option value="SICK">Medical / Sick Leave</option>
+                <option value="MATERNITY">Maternity</option>
+                <option value="PATERNITY">Paternity</option>
+                <option value="LOSS_OF_PAY">Loss of Pay (LOP)</option>
+              </select>
+            </div>
+
+            {/* Branch Filter */}
+            <div className="flex items-center gap-1.5 w-full md:w-auto">
+              <span className="text-[11px] font-bold text-slate-500 uppercase shrink-0">Branch:</span>
+              <select
+                value={leaveBranchFilter}
+                onChange={(e) => setLeaveBranchFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 focus:border-[#EA6118] focus:outline-none shadow-xs"
+              >
+                <option value="ALL">All Branches</option>
+                {branches.map((b, bIdx) => (
+                  <option key={b.id || `leave-branch-${bIdx}`} value={b.name}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Table */}
+          {filteredLeaves.length > 0 ? (
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
                 <tr>
@@ -1086,11 +1469,11 @@ function EmployeesContent() {
                   <th className="pb-3 px-3">Dates &amp; Days</th>
                   <th className="pb-3 px-3">Medical Certificate</th>
                   <th className="pb-3 px-3">Salary / LOP Status</th>
-                  <th className="pb-3 px-3 text-right">Review</th>
+                  <th className="pb-3 px-3 text-right">Review Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {allLeaves.map((lv, lIdx) => {
+                {filteredLeaves.map((lv, lIdx) => {
                   const empName =
                     (typeof lv.userId === "object" ? lv.userId?.name : null) ||
                     lv.employeeName ||
@@ -1108,8 +1491,12 @@ function EmployeesContent() {
                     (typeof lv.userId === "object" ? lv.userId?.department : null) ||
                     lv.department;
 
+                  const leaveId = lv._id || lv.id || `leave-${lIdx}`;
+                  const isProcessing = isProcessingLeaveId === leaveId;
+                  const statusNormalized = (lv.status || "PENDING").toUpperCase();
+
                   return (
-                    <tr key={lv.id ? `leave-${lv.id}-${lIdx}` : `leave-row-${lIdx}`} className="hover:bg-slate-50/70">
+                    <tr key={leaveId} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-3">
                         <p className="font-bold text-slate-900">{empName}</p>
                         {empId && <p className="text-[11px] text-slate-400 font-mono">{empId}</p>}
@@ -1120,83 +1507,117 @@ function EmployeesContent() {
                         {empDept && <p className="text-[11px] text-slate-500">{empDept}</p>}
                       </td>
 
-                    <td className="py-3 px-3">
-                      <span className="rounded-lg bg-blue-50 text-blue-700 font-bold px-2 py-0.5 text-[10px]">
-                        {lv.leaveType}
-                      </span>
-                    </td>
+                      <td className="py-3 px-3">
+                        <span className="rounded-lg bg-blue-50 text-blue-700 font-bold px-2 py-0.5 text-[10px]">
+                          {lv.leaveType}
+                        </span>
+                      </td>
 
-                    <td className="py-3 px-3">
-                      <p className="font-bold text-slate-900">{lv.fromDate} → {lv.toDate}</p>
-                      <p className="text-[11px] text-slate-500">{lv.days} Day(s) • &quot;{lv.reason}&quot;</p>
-                    </td>
+                      <td className="py-3 px-3">
+                        <p className="font-bold text-slate-900">{lv.fromDate} → {lv.toDate}</p>
+                        <p className="text-[11px] text-slate-500">{lv.days} Day(s) • &quot;{lv.reason}&quot;</p>
+                      </td>
 
-                    {/* Medical Certificate Column */}
-                    <td className="py-3 px-3">
-                      {lv.leaveType === "SICK" ? (
-                        lv.hasMedicalCertificate || lv.medicalCertificateUrl ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                            <FileCheck className="h-3 w-3" />
-                            <span>Certificate Verified</span>
+                      {/* Medical Certificate Column */}
+                      <td className="py-3 px-3">
+                        {lv.leaveType === "SICK" ? (
+                          lv.hasMedicalCertificate || lv.medicalCertificateUrl ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                              <FileCheck className="h-3 w-3" />
+                              <span>Certificate Verified</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold" title="Medical certificate missing - Loss of pay applies">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>Missing Cert (LOP Applied)</span>
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[11px] text-slate-400">Not Applicable</span>
+                        )}
+                      </td>
+
+                      {/* LOP Status */}
+                      <td className="py-3 px-3">
+                        {lv.paidDays !== undefined && lv.lopDays !== undefined && lv.paidDays > 0 && lv.lopDays > 0 ? (
+                          <span className="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                            Split ({lv.paidDays} Paid, {lv.lopDays} LOP)
+                          </span>
+                        ) : lv.isLop ? (
+                          <span className="rounded bg-red-100 text-red-800 px-2 py-0.5 text-[10px] font-bold">
+                            Loss of Pay ({lv.lopDays || lv.days || 1}d LOP)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold" title="Medical certificate missing - Loss of pay applies">
-                            <AlertTriangle className="h-3 w-3" />
-                            <span>Missing Cert (LOP Applied)</span>
+                          <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                            Paid Leave ({lv.paidDays || lv.days || 1}d)
                           </span>
-                        )
-                      ) : (
-                        <span className="text-[11px] text-slate-400">Not Applicable</span>
-                      )}
-                    </td>
+                        )}
+                      </td>
 
-                    {/* LOP Status */}
-                    <td className="py-3 px-3">
-                      {lv.paidDays !== undefined && lv.lopDays !== undefined && lv.paidDays > 0 && lv.lopDays > 0 ? (
-                        <span className="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                          Split ({lv.paidDays} Paid, {lv.lopDays} LOP)
-                        </span>
-                      ) : lv.isLop ? (
-                        <span className="rounded bg-red-100 text-red-800 px-2 py-0.5 text-[10px] font-bold">
-                          Loss of Pay ({lv.lopDays || lv.days || 1}d LOP)
-                        </span>
-                      ) : (
-                        <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                          Paid Leave ({lv.paidDays || lv.days || 1}d)
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Review Actions */}
-                    <td className="py-3 px-3 text-right">
-                      {lv.status === "PENDING" ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => toast.success(`Leave application for ${empName} approved.`)}
-                            className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-[11px] font-bold"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => toast.info(`Leave application for ${empName} rejected.`)}
-                            className="rounded-lg bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 text-[11px] font-bold"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">
-                          {lv.status}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      {/* Review Actions: Approve / Reject */}
+                      <td className="py-3 px-3 text-right">
+                        {statusNormalized === "PENDING" ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleReviewLeaveAction(lv, "APPROVE")}
+                              className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-3 py-1.5 text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              <span>Approve</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleReviewLeaveAction(lv, "REJECT")}
+                              className="inline-flex items-center gap-1 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-3 py-1.5 text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              <span>Reject</span>
+                            </button>
+                          </div>
+                        ) : statusNormalized === "APPROVED" ? (
+                          <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1 text-xs font-bold">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Approved</span>
+                          </span>
+                        ) : statusNormalized === "REJECTED" ? (
+                          <span className="inline-flex items-center gap-1 rounded-xl bg-red-50 border border-red-200 text-red-700 px-3 py-1 text-xs font-bold">
+                            <XCircle className="h-3.5 w-3.5 text-red-600" />
+                            <span>Rejected</span>
+                          </span>
+                        ) : (
+                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                            {lv.status}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (
-            <p className="text-xs text-slate-400 text-center py-10">No employee leave applications found.</p>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-slate-500 space-y-2">
+              <Calendar className="mx-auto h-10 w-10 text-slate-300" />
+              <p className="font-bold text-sm text-slate-700">No leave applications match the &quot;{leaveStatusFilter}&quot; filter.</p>
+              <p className="text-xs text-slate-400">Try changing the status tab, search query, or branch filter above.</p>
+              {leaveStatusFilter !== "ALL" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeaveStatusFilter("ALL");
+                    setLeaveSearchTerm("");
+                    setLeaveTypeFilter("ALL");
+                    setLeaveBranchFilter("ALL");
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#EA6118] hover:underline pt-2"
+                >
+                  <span>Reset All Filters</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

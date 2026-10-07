@@ -7,7 +7,7 @@ import { formatRoleLabel, type User } from "@/lib/constants";
 export function generateBranchAttendancePdf(
   employees: User[],
   branchFilterName: string = "all",
-  options?: { reportTitle?: string }
+  options?: { reportTitle?: string; customDate?: string; selectedPeriod?: string }
 ) {
   const branchTitle =
     branchFilterName === "all" || !branchFilterName
@@ -399,7 +399,7 @@ export function generateBranchAttendancePdf(
         <div class="org-subtitle">${options?.reportTitle || "Staff Attendance & Biometric Daily Master Register"}</div>
       </div>
       <div class="meta-box">
-        <div><strong>Date:</strong> ${reportDate}</div>
+        <div><strong>Date / Period:</strong> ${options?.customDate || reportDate}</div>
         <div><strong>Campus / Scope:</strong> ${branchTitle}</div>
         <div><strong>Standard Shift:</strong> 09:40 AM – 07:00 PM (Grace: 09:45 AM)</div>
       </div>

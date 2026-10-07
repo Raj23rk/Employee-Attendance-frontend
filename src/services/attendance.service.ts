@@ -252,6 +252,14 @@ export const attendanceService = {
     const response = await apiClient.get("/attendance/ceo/department-stats", { params: { branch } });
     return response.data;
   },
+
+  // 4.19 Daywise Multi-Branch Irregularities Report (Late comers, Half-days, Approved Leaves, Absentees)
+  async getDailyBranchIrregularities(date?: string, branch?: string) {
+    const response = await apiClient.get("/attendance/reports/daily-branch-irregularities", {
+      params: { date, branch },
+    });
+    return response.data;
+  },
 };
 
 export default attendanceService;

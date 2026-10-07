@@ -7,6 +7,7 @@ export * from "./dashboard.service";
 export * from "./tasks.service";
 export * from "./timesheets.service";
 export * from "./payroll.service";
+export * from "./salary.service";
 export * from "./expenses.service";
 export * from "./organization.service";
 export * from "./engage.service";
