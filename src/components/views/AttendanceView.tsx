@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Plus,
   Printer,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -27,18 +28,19 @@ import { attendanceService } from "@/services/attendance.service";
 import { CheckInOutWidget } from "@/components/ui/CheckInOutWidget";
 import { useToast } from "@/context/ToastContext";
 import { formatTime } from "@/lib/helpers";
-import { generateBranchAttendancePdf } from "@/lib/pdf-reports";
+import { generateBranchAttendancePdf, generateEmployeeIndividualPdf } from "@/lib/pdf-reports";
 
 
 function AttendanceContent() {
   const { toast } = useToast();
   const { user } = useAuth();
   const role = (user?.role || "employee").toLowerCase();
+  const isMDorGM = role === "md" || role === "gm";
   const isManager = role === "manager";
   const isHR = role === "hr_manager" || role === "admin" || role === "md" || role === "gm";
   const isCEO = role === "ceo" || role === "md" || role === "gm";
 
-  const defaultTab = (isHR || isCEO) ? "company" : isManager ? "team" : "my_logs";
+  const defaultTab = (isHR || isCEO || isMDorGM) ? "company" : isManager ? "team" : "my_logs";
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -188,8 +190,44 @@ function AttendanceContent() {
     }
   };
 
+  // Individual Monthly Attendance & Biometric Audit Log PDF (Each Person)
+  const handlePrintIndividualPdf = async (empId?: string, empData?: any) => {
+    toast.info("Generating Individual Monthly Attendance & Biometric Audit Log PDF...");
+    const targetEmpId = empId || empData?.employeeId || empData?.id || empData?._id || user?.employeeId || user?.id;
+    try {
+      const res = await attendanceService.getMonthlyAttendanceReport({
+        employeeId: targetEmpId,
+        month: selectedMonth,
+        year: selectedYear,
+      });
+      if (res && res.success && res.employee && Array.isArray(res.days)) {
+        generateEmployeeIndividualPdf(res);
+        return;
+      }
+      // Fallback generator
+      generateEmployeeIndividualPdf(
+        empData || user,
+        selectedMonth,
+        selectedYear,
+        myCalendar
+      );
+    } catch {
+      generateEmployeeIndividualPdf(
+        empData || user,
+        selectedMonth,
+        selectedYear,
+        myCalendar
+      );
+    }
+  };
+
   // PDF Attendance Master Report Export
   const handleExportPdf = () => {
+    if (activeTab === "my_logs") {
+      handlePrintIndividualPdf();
+      return;
+    }
+
     toast.info("Generating PDF Attendance Master Report...");
     if (activeTab === "company" && dailySheet.length > 0) {
       const formatted = dailySheet.map((item: any, i: number) => ({
@@ -224,26 +262,7 @@ function AttendanceContent() {
       }));
       generateBranchAttendancePdf(formatted as any, "Team Attendance Today");
     } else {
-      const formatted = myCalendar.map((row: any, i: number) => ({
-        id: row._id || row.id || `row-${i}`,
-        name: user?.name || "Employee",
-        employeeId: user?.employeeId || "WG-STAFF",
-        department: user?.department || "General",
-        branch: user?.branch || "Main Campus",
-        dateOfJoining: row.date,
-        role: (user?.role?.toLowerCase() as any) || "employee",
-        todayAttendance: {
-          isCheckedIn: row.status === "PRESENT" && (!row.checkOutTime || row.checkOutTime === "--:--"),
-          checkInTime: row.checkInTime || row.checkIn,
-          checkOutTime: row.checkOutTime || row.checkOut,
-          status: row.status || "PRESENT",
-        },
-      }));
-      generateBranchAttendancePdf(
-        formatted as any,
-        `${user?.name || "Staff"} Attendance History`,
-        { reportTitle: "Monthly Biometric Attendance History" }
-      );
+      handlePrintIndividualPdf();
     }
   };
 
@@ -255,14 +274,16 @@ function AttendanceContent() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-[#EA6118]/20 px-2.5 py-0.5 text-xs font-bold text-[#F0834A]">
               <Sparkles className="h-3 w-3" />
-              {isManager ? "Team Manager Portal" : isHR ? "HR & Compliance Master" : "Employee Portal"}
+              {isMDorGM ? "Executive Biometric Register" : isManager ? "Team Manager Portal" : isHR ? "HR & Compliance Master" : "Employee Portal"}
             </span>
           </div>
           <h1 className="font-heading text-2xl font-bold text-[#12173A] mt-1">
-            Attendance &amp; Biometric Records
+            {isMDorGM ? "Campus Attendance & Biometric Master" : "Attendance & Biometric Records"}
           </h1>
           <p className="text-xs sm:text-sm text-[#5B6180]">
-            Standard Shift: <strong>09:40 AM – 07:00 PM</strong> • Grace: <strong>09:45 AM</strong> • 3 Late Check-ins Allowed • 2h Monthly Permission
+            {isMDorGM
+              ? "Comprehensive Real-time Biometric Records, Muster Roll & Compliance Tracking"
+              : "Standard Shift: 09:40 AM – 07:00 PM • Grace: 09:45 AM • 3 Late Check-ins Allowed • 2h Monthly Permission"}
           </p>
         </div>
 
@@ -276,14 +297,26 @@ function AttendanceContent() {
             <span>Sync</span>
           </button>
 
+          {!isMDorGM && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowCorrectionModal(true)}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Apply Regularisation</span>
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
-            className="gap-2"
-            onClick={() => setShowCorrectionModal(true)}
+            className="gap-2 border-orange-200 text-[#EA6118] bg-orange-50/60 hover:bg-orange-100 font-bold"
+            onClick={() => handlePrintIndividualPdf()}
           >
-            <Plus className="h-4 w-4" />
-            <span>Apply Regularisation</span>
+            <FileText className="h-4 w-4" />
+            <span>Individual Audit PDF</span>
           </Button>
 
           <Button
@@ -293,26 +326,30 @@ function AttendanceContent() {
             onClick={handleExportPdf}
           >
             <Printer className="h-4 w-4" />
-            <span>Print / Save PDF Report</span>
+            <span>Print Master Report</span>
           </Button>
         </div>
       </div>
 
-      {/* Live Punch & Work Timer Card */}
-      <CheckInOutWidget variant="card" onStatusChange={fetchAttendanceData} />
+      {/* Live Punch & Work Timer Card (Hidden for MD and GM) */}
+      {!isMDorGM && (
+        <CheckInOutWidget variant="card" onStatusChange={fetchAttendanceData} />
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto text-xs font-semibold">
-        <button
-          onClick={() => setActiveTab("my_logs")}
-          className={`px-4 py-2 rounded-xl transition-all ${
-            activeTab === "my_logs"
-              ? "bg-[#EA6118] text-white shadow-sm"
-              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-          }`}
-        >
-          My Attendance Calendar
-        </button>
+        {!isMDorGM && (
+          <button
+            onClick={() => setActiveTab("my_logs")}
+            className={`px-4 py-2 rounded-xl transition-all ${
+              activeTab === "my_logs"
+                ? "bg-[#EA6118] text-white shadow-sm"
+                : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+            }`}
+          >
+            My Attendance Calendar
+          </button>
+        )}
 
         {(isManager || isHR || isCEO) && (
           <button
@@ -605,6 +642,7 @@ function AttendanceContent() {
                     <th className="pb-3 px-3">Check In</th>
                     <th className="pb-3 px-3">Check Out</th>
                     <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 px-3 text-right">Individual Report</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -620,6 +658,16 @@ function AttendanceContent() {
                         }`}>
                           {member.status || "Expected"}
                         </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => handlePrintIndividualPdf(member.employeeId || member._id || member.id, member)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA6118] px-3 py-1.5 font-bold border border-orange-200 transition-all text-xs"
+                          title="Generate and Print Individual Monthly Attendance & Biometric Audit Log PDF"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                          <span>PDF Statement</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -647,6 +695,7 @@ function AttendanceContent() {
                   <th className="pb-3 px-3">Department</th>
                   <th className="pb-3 px-3">Status</th>
                   <th className="pb-3 px-3">Punches</th>
+                  <th className="pb-3 px-3 text-right">Individual Report</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -662,6 +711,16 @@ function AttendanceContent() {
                     </td>
                     <td className="py-3 px-3 text-slate-500">
                       {item.checkInTime ? formatTime(item.checkInTime) : "09:40 AM"} - {item.checkOutTime ? formatTime(item.checkOutTime) : "07:00 PM"}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        onClick={() => handlePrintIndividualPdf(item.employeeId || item.id || item._id, item)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#EA6118] px-3 py-1.5 font-bold border border-orange-200 transition-all text-xs"
+                        title="Generate and Print Individual Monthly Attendance & Biometric Audit Log PDF"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>PDF Statement</span>
+                      </button>
                     </td>
                   </tr>
                 ))}

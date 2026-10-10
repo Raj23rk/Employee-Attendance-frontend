@@ -260,7 +260,28 @@ export const attendanceService = {
     });
     return response.data;
   },
+
+  // 4.20 Individual Monthly Attendance & Biometric Audit Log (Each Person PDF / Print)
+  async getMonthlyAttendanceReport(params?: {
+    employeeId?: string;
+    month?: number;
+    year?: number;
+    format?: string;
+  }) {
+    const url = params?.employeeId
+      ? `/attendance/reports/individual/${encodeURIComponent(params.employeeId)}`
+      : `/attendance/reports/individual`;
+    const response = await apiClient.get(url, {
+      params: {
+        month: params?.month,
+        year: params?.year,
+        format: params?.format,
+      },
+    });
+    return response.data;
+  },
 };
 
 export default attendanceService;
+
 

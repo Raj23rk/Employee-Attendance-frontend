@@ -44,6 +44,7 @@ import { Badge } from "@/components/ui/Badge";
 import { usersService, type OnboardEmployeePayload } from "@/services/users.service";
 import { leavesService } from "@/services/leaves.service";
 import { dashboardService } from "@/services/dashboard.service";
+import { attendanceService } from "@/services/attendance.service";
 import { organizationService } from "@/services/organization.service";
 import {
   DEFAULT_BRANCHES,
@@ -707,8 +708,18 @@ function EmployeesContent() {
   const handleDownloadIndividualReport = async (emp: User) => {
     toast.info(`Generating Monthly Attendance PDF Report for ${emp.name}...`);
     try {
-      const res = await dashboardService.getEmployeePopupDetails(emp.id || (emp as any)._id || emp.employeeId);
-      const popupData = res?.data || res;
+      const monthIndex = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth() + 1;
+      const res = await attendanceService.getMonthlyAttendanceReport({
+        employeeId: emp.employeeId || emp.id || (emp as any)._id,
+        month: isNaN(monthIndex) ? 10 : monthIndex,
+        year: Number(selectedYear) || 2026,
+      });
+      if (res && res.success && res.employee && Array.isArray(res.days)) {
+        generateEmployeeIndividualPdf(res);
+        return;
+      }
+      const popupRes = await dashboardService.getEmployeePopupDetails(emp.id || (emp as any)._id || emp.employeeId);
+      const popupData = popupRes?.data || popupRes;
       generateEmployeeIndividualPdf({
         ...emp,
         ...(popupData && typeof popupData === "object" ? popupData : {}),

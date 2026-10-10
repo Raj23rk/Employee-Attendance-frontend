@@ -37,13 +37,14 @@ function LeaveContent() {
   const { toast } = useToast();
   const { user } = useAuth();
   const role = (user?.role || "employee").toLowerCase();
+  const isMDorGM = role === "md" || role === "gm";
   const isManager = role === "manager" || role === "team_manager";
   const isHR = role === "hr" || role === "hr_manager" || role === "admin" || role === "system_admin" || role === "md" || role === "gm";
   const isCEO = role === "ceo" || role === "executive" || role === "md" || role === "gm";
-  const isApprover = isManager || isHR || isCEO;
+  const isApprover = isManager || isHR || isCEO || isMDorGM;
   const isFemale = user?.gender?.toLowerCase() === "female";
 
-  const defaultTab = isApprover ? "team_approvals" : "my_leaves";
+  const defaultTab = (isApprover || isMDorGM) ? "team_approvals" : "my_leaves";
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [showModal, setShowModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -500,95 +501,137 @@ function LeaveContent() {
             <span>Refresh</span>
           </button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className={`gap-2 font-bold ${
-              permissionsRemaining === 0
-                ? "border-red-400 bg-red-50/50 text-red-700 hover:bg-red-100/60"
-                : "border-[#EA6118] text-[#EA6118] hover:bg-orange-50"
-            }`}
-            onClick={() => setShowPermissionModal(true)}
-          >
-            <Clock className="h-4 w-4" />
-            <span>
-              {permissionsRemaining === 0
-                ? `Apply Permission (2/2 Used - LOP)`
-                : `Apply Permission (${permissionsRemaining}/2 Left)`}
-            </span>
-          </Button>
+          {!isMDorGM && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`gap-2 font-bold ${
+                  permissionsRemaining === 0
+                    ? "border-red-400 bg-red-50/50 text-red-700 hover:bg-red-100/60"
+                    : "border-[#EA6118] text-[#EA6118] hover:bg-orange-50"
+                }`}
+                onClick={() => setShowPermissionModal(true)}
+              >
+                <Clock className="h-4 w-4" />
+                <span>
+                  {permissionsRemaining === 0
+                    ? `Apply Permission (2/2 Used - LOP)`
+                    : `Apply Permission (${permissionsRemaining}/2 Left)`}
+                </span>
+              </Button>
 
-          <Button
-            variant="primary"
-            size="sm"
-            className="gap-2 shadow-sm"
-            onClick={() => setShowModal(true)}
-          >
-            <Plus className="h-4 w-4" />
-            <span>Apply for Leave</span>
-          </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="gap-2 shadow-sm"
+                onClick={() => setShowModal(true)}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Apply for Leave</span>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Leave & Attendance Statistics Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {/* Card 1: Monthly Casual Leave Quota */}
-        <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Casual Leave</span>
-          <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
-            1 <span className="text-xs text-slate-400 font-normal">Day / Month</span>
-          </p>
-          <span className="text-[10px] text-slate-500">Monthly Standard Quota</span>
-        </div>
+      {isMDorGM ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Pending Approvals</span>
+            <p className="font-heading text-2xl font-bold text-[#EA6118] mt-1">
+              {teamRequests.length + teamPermissions.length} <span className="text-xs text-slate-400 font-normal">Requests</span>
+            </p>
+            <span className="text-[10px] text-amber-600 font-semibold">Requires Executive Decision</span>
+          </div>
 
-        {/* Card 2: Total Casual Leave Used */}
-        <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Casual Leave</span>
-          <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
-            {casualLeavesUsed} <span className="text-xs text-slate-400 font-normal">Day(s)</span>
-          </p>
-          <span className={`text-[10px] font-semibold ${casualLeavesUsed >= 1 ? "text-amber-600" : "text-emerald-600"}`}>
-            {casualLeavesUsed >= 1 ? "Monthly Quota Utilized (Next -> LOP)" : "1 Day Available This Month"}
-          </span>
-        </div>
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Leave Applications</span>
+            <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
+              {teamRequests.length} <span className="text-xs text-slate-400 font-normal">Staff</span>
+            </p>
+            <span className="text-[10px] text-slate-500">Casual &amp; Medical Leaves</span>
+          </div>
 
-        {/* Card 3: Total Permission */}
-        <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Permission</span>
-          <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
-            {permissionHoursUsed} <span className="text-xs text-slate-400 font-normal">/ 2 Hours</span>
-          </p>
-          <span className={`text-[10px] font-semibold ${permissionHoursUsed > 2 ? "text-red-600" : "text-slate-500"}`}>
-            {permissionHoursUsed > 2 ? "⚠️ Exceeded 2h (-0.5d Half-Day LOP)" : "Max 2h / Month Allowance"}
-          </span>
-        </div>
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Permissions</span>
+            <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
+              {teamPermissions.length} <span className="text-xs text-slate-400 font-normal">Staff</span>
+            </p>
+            <span className="text-[10px] text-slate-500">1-Hour Permission Requests</span>
+          </div>
 
-        {/* Card 4: This Month Working Days */}
-        <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">This Month Working Days</span>
-          <p className="font-heading text-2xl font-bold text-[#EA6118] mt-1">
-            {effectiveWorkingDays} <span className="text-xs text-slate-400 font-normal">/ {baseWorkingDays} Days</span>
-          </p>
-          <span className={`text-[10px] font-semibold ${totalLopAndDeductions > 0 ? "text-red-600" : "text-emerald-600"}`}>
-            {totalLopAndDeductions > 0
-              ? `-${totalLopAndDeductions}d Deduction (${leaveLopDays}d LOP${permissionDeductionDays > 0 ? " + 0.5d Perm" : ""}${lateDeductionDays > 0 ? " + 0.5d Late" : ""})`
-              : "100% Full Attendance"}
-          </span>
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Campus Staff</span>
+            <p className="font-heading text-2xl font-bold text-emerald-600 mt-1">
+              {baseWorkingDays} <span className="text-xs text-slate-400 font-normal">Working Days</span>
+            </p>
+            <span className="text-[10px] text-emerald-600 font-semibold">Current Month Operational Days</span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {/* Card 1: Monthly Casual Leave Quota */}
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Casual Leave</span>
+            <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
+              1 <span className="text-xs text-slate-400 font-normal">Day / Month</span>
+            </p>
+            <span className="text-[10px] text-slate-500">Monthly Standard Quota</span>
+          </div>
+
+          {/* Card 2: Total Casual Leave Used */}
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Casual Leave</span>
+            <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
+              {casualLeavesUsed} <span className="text-xs text-slate-400 font-normal">Day(s)</span>
+            </p>
+            <span className={`text-[10px] font-semibold ${casualLeavesUsed >= 1 ? "text-amber-600" : "text-emerald-600"}`}>
+              {casualLeavesUsed >= 1 ? "Monthly Quota Utilized (Next -> LOP)" : "1 Day Available This Month"}
+            </span>
+          </div>
+
+          {/* Card 3: Total Permission */}
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Permission</span>
+            <p className="font-heading text-2xl font-bold text-slate-900 mt-1">
+              {permissionHoursUsed} <span className="text-xs text-slate-400 font-normal">/ 2 Hours</span>
+            </p>
+            <span className={`text-[10px] font-semibold ${permissionHoursUsed > 2 ? "text-red-600" : "text-slate-500"}`}>
+              {permissionHoursUsed > 2 ? "⚠️ Exceeded 2h (-0.5d Half-Day LOP)" : "Max 2h / Month Allowance"}
+            </span>
+          </div>
+
+          {/* Card 4: This Month Working Days */}
+          <div className="rounded-3xl border border-[#E2E4EF] bg-white p-4 shadow-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">This Month Working Days</span>
+            <p className="font-heading text-2xl font-bold text-[#EA6118] mt-1">
+              {effectiveWorkingDays} <span className="text-xs text-slate-400 font-normal">/ {baseWorkingDays} Days</span>
+            </p>
+            <span className={`text-[10px] font-semibold ${totalLopAndDeductions > 0 ? "text-red-600" : "text-emerald-600"}`}>
+              {totalLopAndDeductions > 0
+                ? `-${totalLopAndDeductions}d Deduction (${leaveLopDays}d LOP${permissionDeductionDays > 0 ? " + 0.5d Perm" : ""}${lateDeductionDays > 0 ? " + 0.5d Late" : ""})`
+                : "100% Full Attendance"}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto text-xs font-semibold">
-        <button
-          onClick={() => setActiveTab("my_leaves")}
-          className={`px-4 py-2 rounded-xl transition-all ${
-            activeTab === "my_leaves"
-              ? "bg-[#EA6118] text-white shadow-sm"
-              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-          }`}
-        >
-          My Applications ({myLeaves.length + myPermissions.length})
-        </button>
+        {!isMDorGM && (
+          <button
+            onClick={() => setActiveTab("my_leaves")}
+            className={`px-4 py-2 rounded-xl transition-all ${
+              activeTab === "my_leaves"
+                ? "bg-[#EA6118] text-white shadow-sm"
+                : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+            }`}
+          >
+            My Applications ({myLeaves.length + myPermissions.length})
+          </button>
+        )}
 
         {isApprover && (
           <button

@@ -48,6 +48,7 @@ export function PayrollView({ userRole: propUserRole }: PayrollViewProps) {
   const { toast } = useToast();
 
   const roleStr = (propUserRole || user?.role || "EMPLOYEE").toUpperCase();
+  const isMDorGM = roleStr === "MD" || roleStr === "GM";
   const isManagerOrAdmin = ["HR", "HR_MANAGER", "GM", "MD", "ADMIN", "CEO"].includes(roleStr);
 
   const [activeTab, setActiveTab] = useState<"payslips" | "structures" | "increments">("structures");
@@ -997,17 +998,19 @@ export function PayrollView({ userRole: propUserRole }: PayrollViewProps) {
               <span>Staff Salary Registry</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab("payslips")}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all ${
-                activeTab === "payslips"
-                  ? "bg-[#2563eb] text-white shadow-md shadow-blue-500/20"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              <FileText className="h-4 w-4" />
-              <span>Monthly Payslips</span>
-            </button>
+            {!isMDorGM && (
+              <button
+                onClick={() => setActiveTab("payslips")}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all ${
+                  activeTab === "payslips"
+                    ? "bg-[#2563eb] text-white shadow-md shadow-blue-500/20"
+                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                <span>Monthly Payslips</span>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab("increments")}

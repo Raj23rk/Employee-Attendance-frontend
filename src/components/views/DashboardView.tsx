@@ -136,6 +136,7 @@ function DashboardContent() {
   const { toast } = useToast();
   const { user } = useAuth();
   const currentRole: UserRole = user?.role || "admin";
+  const isMDorGM = currentRole === "md" || currentRole === "gm";
   const isCEO = currentRole === "ceo" || currentRole === "md" || currentRole === "gm" || currentRole === "admin";
 
   const [isLoading, setIsLoading] = useState(true);
@@ -502,7 +503,9 @@ function DashboardContent() {
 
           {/* Quick Actions & Live Punch Widget */}
           <div className="flex flex-wrap items-center gap-3 self-start md:self-center">
-            <CheckInOutWidget variant="banner" onStatusChange={fetchDashboardData} />
+            {!isMDorGM && (
+              <CheckInOutWidget variant="banner" onStatusChange={fetchDashboardData} />
+            )}
 
             <button
               onClick={fetchDashboardData}

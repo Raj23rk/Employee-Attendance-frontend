@@ -480,191 +480,273 @@ export function generateBranchAttendancePdf(
  * Table format with each day of the month: Check-In (Green), Check-Out (Red), Leave, Hours
  */
 export function generateEmployeeIndividualPdf(
-  emp: User,
+  empOrReport: any,
   month?: number,
   year?: number,
   customRecords?: any[]
 ) {
+  // Check if input is already the backend API report response structure
+  const isApiReport = !!(empOrReport?.employee && empOrReport?.period && empOrReport?.metrics && Array.isArray(empOrReport?.days));
+
+  const emp: User = isApiReport
+    ? {
+        id: empOrReport.employee.id || empOrReport.employee._id,
+        employeeId: empOrReport.employee.employeeId || "WG-EMP",
+        name: empOrReport.employee.name || "Employee",
+        designation: empOrReport.employee.designation || "Staff",
+        role: (empOrReport.employee.role?.toLowerCase() as any) || "employee",
+        department: empOrReport.employee.department || "General",
+        branch: empOrReport.employee.branch || "Main Campus",
+        dateOfJoining: empOrReport.employee.dateOfJoining || "-",
+        email: empOrReport.employee.email || "",
+      }
+    : (empOrReport as User);
+
   const now = new Date();
-  const targetYear = year || now.getFullYear();
-  const targetMonth = month || now.getMonth() + 1; // 1-indexed
+  const targetYear = isApiReport ? empOrReport.period.year : (year || now.getFullYear());
+  const targetMonth = isApiReport ? empOrReport.period.month : (month || now.getMonth() + 1); // 1-indexed
 
-  const monthName = new Date(targetYear, targetMonth - 1, 1).toLocaleDateString("en-IN", {
-    month: "long",
-  });
-  const monthYearLabel = `${monthName} ${targetYear}`;
+  const monthName = isApiReport
+    ? empOrReport.period.monthName || new Date(targetYear, targetMonth - 1, 1).toLocaleDateString("en-IN", { month: "long" })
+    : new Date(targetYear, targetMonth - 1, 1).toLocaleDateString("en-IN", { month: "long" });
+  const monthYearLabel = isApiReport
+    ? empOrReport.period.statementPeriod || `${monthName} ${targetYear}`
+    : `${monthName} ${targetYear}`;
 
-  // Number of days in the target month (e.g. 31 for October)
-  const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+  const daysInMonth = isApiReport ? empOrReport.period.totalDays || empOrReport.metrics.daysInMonth : new Date(targetYear, targetMonth, 0).getDate();
   const todayDateStr = now.toISOString().split("T")[0];
 
-  // Map any past/custom attendance records
-  const recordMap = new Map<string, any>();
-  if (Array.isArray(customRecords)) {
-    customRecords.forEach((r) => {
-      const d = r.date || r.targetDate;
-      if (d) recordMap.set(d, r);
-    });
-  }
-  if (Array.isArray((emp as any).attendanceHistory)) {
-    (emp as any).attendanceHistory.forEach((r: any) => {
-      const d = r.date || r.targetDate;
-      if (d) recordMap.set(d, r);
-    });
-  }
-
-  let presentDaysCount = 0;
-  let lateDaysCount = 0;
-  let leaveDaysCount = 0;
-  let weeklyOffCount = 0;
-
-  // Build each day of the month row
   const dayRowsHtml: string[] = [];
 
-  for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
-    const dateObj = new Date(targetYear, targetMonth - 1, dayNum);
-    const dateIsoStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
-    const dayOfWeek = dateObj.toLocaleDateString("en-IN", { weekday: "short" });
-    const formattedDate = dateObj.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+  let presentDaysCount = isApiReport ? empOrReport.metrics.daysPresent : 0;
+  let lateDaysCount = isApiReport ? empOrReport.metrics.lateArrivalsCount : 0;
+  let leaveDaysCount = isApiReport ? empOrReport.metrics.casualLeavesUsed : 0;
+  let lopDays = isApiReport ? empOrReport.metrics.lossOfPayDays : 0;
+  let lateCountTotal = isApiReport ? empOrReport.metrics.lateArrivalsCount : 0;
+  let clUsed = isApiReport ? empOrReport.metrics.casualLeavesUsed : 0;
+  let permissionUsed = isApiReport ? empOrReport.metrics.permissionHoursUsed : 0;
+  let lateCountTotalText = isApiReport ? empOrReport.metrics.lateArrivalsText : "";
+  let clUsedText = isApiReport ? empOrReport.metrics.casualLeavesText : "";
+  let permissionUsedText = isApiReport ? empOrReport.metrics.permissionUsedText : "";
+  let lopText = isApiReport ? empOrReport.metrics.lopText : "";
+
+  if (isApiReport && Array.isArray(empOrReport.days)) {
+    empOrReport.days.forEach((dayItem: any, idx: number) => {
+      const dayNumStr = dayItem.day || String(idx + 1).padStart(2, "0");
+      const dateAndWeekday = dayItem.dateAndWeekday || `${dayNumStr} ${monthName.slice(0, 3)} ${targetYear} ${dayItem.weekday || ""}`;
+      const shiftTimings = dayItem.shiftTimings || "09:40 AM – 07:00 PM";
+      const inTime = dayItem.checkIn || "--:--";
+      const outTime = dayItem.checkOut || "--:--";
+      const durationText = dayItem.duration || "--";
+      const statusText = dayItem.status || "Scheduled";
+      const notes = dayItem.locationTerminal || `📍 ${emp.branch || "Campus"}`;
+
+      const isSunday = dayItem.isSunday || dayItem.weekday === "Sun" || statusText.toUpperCase().includes("SUNDAY");
+      const isToday = dayItem.isToday || dayItem.date === todayDateStr;
+
+      let badgeClass = dayItem.badgeClass || "";
+      if (!badgeClass) {
+        const st = statusText.toUpperCase();
+        if (st.includes("PRESENT")) badgeClass = "badge-present";
+        else if (st.includes("LATE")) badgeClass = "badge-late";
+        else if (st.includes("LEAVE") || st.includes("CL") || st.includes("ML")) badgeClass = "badge-leave";
+        else if (st.includes("SUNDAY") || st.includes("OFF")) badgeClass = "badge-off";
+        else if (st.includes("SHIFT OUT") || st.includes("ENDED")) badgeClass = "badge-shift-out";
+        else if (st.includes("ABSENT") || st.includes("LOP")) badgeClass = "badge-absent";
+        else badgeClass = "badge-scheduled";
+      }
+
+      const inBadgeHtml =
+        inTime && inTime !== "--:--" && inTime !== "-"
+          ? `<span class="time-in-badge">${inTime}</span>`
+          : `<span class="text-muted">--:--</span>`;
+
+      const outBadgeHtml =
+        outTime && outTime !== "--:--" && outTime !== "-"
+          ? `<span class="time-out-badge">${outTime}</span>`
+          : `<span class="text-muted">--:--</span>`;
+
+      const rowClass = isSunday ? "sunday-row" : isToday ? "today-row" : "";
+
+      dayRowsHtml.push(`
+        <tr class="${rowClass}">
+          <td class="text-center font-mono font-bold">${dayNumStr}</td>
+          <td>
+            <strong>${dateAndWeekday}</strong>
+          </td>
+          <td class="text-center font-mono text-muted text-xs">${shiftTimings}</td>
+          <td class="text-center">${inBadgeHtml}</td>
+          <td class="text-center">${outBadgeHtml}</td>
+          <td class="text-center font-mono font-bold">${durationText}</td>
+          <td class="text-center"><span class="badge ${badgeClass}">${statusText}</span></td>
+          <td class="text-slate-600 text-xs">${notes}</td>
+        </tr>
+      `);
     });
-
-    const isSunday = dateObj.getDay() === 0;
-    const isToday = dateIsoStr === todayDateStr;
-    const isPast = dateObj <= now;
-
-    let inTime = "--:--";
-    let outTime = "--:--";
-    let statusText = "Scheduled";
-    let badgeClass = "badge-scheduled";
-    let durationText = "--";
-    let notes = `📍 ${emp.branch || "Campus Branch"}`;
-
-    const existingRecord = recordMap.get(dateIsoStr);
-
-    if (isToday) {
-      const todayIn = emp.todayAttendance?.checkInTime;
-      const todayOut = emp.todayAttendance?.checkOutTime;
-      const isCheckedIn = emp.todayAttendance?.isCheckedIn;
-      const hasOut = todayOut && todayOut !== "--:--" && todayOut !== "-";
-
-      if (todayIn && todayIn !== "--:--" && todayIn !== "-") {
-        inTime = formatTime(todayIn);
-        presentDaysCount++;
-      }
-      if (hasOut) {
-        outTime = formatTime(todayOut);
-      }
-
-      if (isCheckedIn) {
-        if (emp.todayAttendance?.status === "LATE") {
-          statusText = "Late Punch";
-          badgeClass = "badge-late";
-          lateDaysCount++;
-        } else {
-          statusText = "Present (On Shift)";
-          badgeClass = "badge-present";
-        }
-      } else if (hasOut) {
-        statusText = "Shift Ended";
-        badgeClass = "badge-shift-out";
-      } else if (emp.todayAttendance?.status === "ON_LEAVE") {
-        statusText = "On Leave";
-        badgeClass = "badge-leave";
-        leaveDaysCount++;
-      } else {
-        statusText = "Shift Out";
-        badgeClass = "badge-absent";
-      }
-      durationText = isCheckedIn ? "Active Session" : hasOut ? "08h 00m" : "--";
-      notes = "Today's Live Punch (Biometric/GPS)";
-    } else if (existingRecord) {
-      const recIn = existingRecord.checkInTime || existingRecord.checkIn || existingRecord.checkin;
-      const recOut = existingRecord.checkOutTime || existingRecord.checkOut || existingRecord.checkout;
-      if (recIn && recIn !== "-" && recIn !== "--:--") {
-        inTime = formatTime(recIn);
-        presentDaysCount++;
-      }
-      if (recOut && recOut !== "-" && recOut !== "--:--") {
-        outTime = formatTime(recOut);
-      }
-
-      const st = existingRecord.status?.toUpperCase() || "PRESENT";
-      if (st === "PRESENT") {
-        statusText = "Present";
-        badgeClass = "badge-present";
-      } else if (st === "LATE") {
-        statusText = "Late Arrival";
-        badgeClass = "badge-late";
-        lateDaysCount++;
-      } else if (st === "LEAVE" || st === "ON_LEAVE" || st === "CASUAL_LEAVE") {
-        statusText = "Casual Leave (CL)";
-        badgeClass = "badge-leave";
-        leaveDaysCount++;
-      } else if (st === "MEDICAL_LEAVE") {
-        statusText = "Medical Leave (ML)";
-        badgeClass = "badge-leave";
-        leaveDaysCount++;
-      } else {
-        statusText = existingRecord.status || "Present";
-        badgeClass = "badge-present";
-      }
-      durationText = existingRecord.workingHours || existingRecord.duration || "08h 30m";
-      notes = existingRecord.notes || existingRecord.terminal || `📍 ${emp.branch || "Campus"}`;
-    } else if (isSunday) {
-      statusText = "Sunday (Weekly Off)";
-      badgeClass = "badge-off";
-      notes = "Campus Weekly Holiday";
-      weeklyOffCount++;
-    } else if (isPast) {
-      // Past day without record
-      statusText = "Absent / LOP";
-      badgeClass = "badge-absent";
-      notes = "No punch logged";
-    } else {
-      // Future day
-      statusText = "Scheduled Shift";
-      badgeClass = "badge-scheduled";
-      notes = "Shift: 09:40 AM – 07:00 PM";
+  } else {
+    // Map any past/custom attendance records
+    const recordMap = new Map<string, any>();
+    if (Array.isArray(customRecords)) {
+      customRecords.forEach((r) => {
+        const d = r.date || r.targetDate;
+        if (d) recordMap.set(d, r);
+      });
+    }
+    if (Array.isArray((emp as any).attendanceHistory)) {
+      (emp as any).attendanceHistory.forEach((r: any) => {
+        const d = r.date || r.targetDate;
+        if (d) recordMap.set(d, r);
+      });
     }
 
-    // Check-in green badge
-    const inBadgeHtml =
-      inTime !== "--:--"
-        ? `<span class="time-in-badge">${inTime}</span>`
-        : `<span class="text-muted">--:--</span>`;
+    let weeklyOffCount = 0;
 
-    // Check-out red badge
-    const outBadgeHtml =
-      outTime !== "--:--"
-        ? `<span class="time-out-badge">${outTime}</span>`
-        : `<span class="text-muted">--:--</span>`;
+    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+      const dateObj = new Date(targetYear, targetMonth - 1, dayNum);
+      const dateIsoStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+      const dayOfWeek = dateObj.toLocaleDateString("en-IN", { weekday: "short" });
+      const formattedDate = dateObj.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
 
-    const rowClass = isSunday ? "sunday-row" : isToday ? "today-row" : "";
+      const isSunday = dateObj.getDay() === 0;
+      const isToday = dateIsoStr === todayDateStr;
+      const isPast = dateObj <= now;
 
-    dayRowsHtml.push(`
-      <tr class="${rowClass}">
-        <td class="text-center font-mono font-bold">${String(dayNum).padStart(2, "0")}</td>
-        <td>
-          <strong>${formattedDate}</strong>
-          <span class="day-tag ${isSunday ? "sunday-tag" : ""}">${dayOfWeek}</span>
-        </td>
-        <td class="text-center font-mono text-muted text-xs">09:40 AM – 07:00 PM</td>
-        <td class="text-center">${inBadgeHtml}</td>
-        <td class="text-center">${outBadgeHtml}</td>
-        <td class="text-center font-mono font-bold">${durationText}</td>
-        <td class="text-center"><span class="badge ${badgeClass}">${statusText}</span></td>
-        <td class="text-slate-600 text-xs">${notes}</td>
-      </tr>
-    `);
+      let inTime = "--:--";
+      let outTime = "--:--";
+      let statusText = "Scheduled Shift";
+      let badgeClass = "badge-scheduled";
+      let durationText = "--";
+      let notes = `📍 ${emp.branch || "Campus Branch"}`;
+
+      const existingRecord = recordMap.get(dateIsoStr);
+
+      if (isToday) {
+        const todayIn = emp.todayAttendance?.checkInTime;
+        const todayOut = emp.todayAttendance?.checkOutTime;
+        const isCheckedIn = emp.todayAttendance?.isCheckedIn;
+        const hasOut = todayOut && todayOut !== "--:--" && todayOut !== "-";
+
+        if (todayIn && todayIn !== "--:--" && todayIn !== "-") {
+          inTime = formatTime(todayIn);
+          presentDaysCount++;
+        }
+        if (hasOut) {
+          outTime = formatTime(todayOut);
+        }
+
+        if (isCheckedIn) {
+          if (emp.todayAttendance?.status === "LATE") {
+            statusText = "Late Punch";
+            badgeClass = "badge-late";
+            lateDaysCount++;
+          } else {
+            statusText = "Present (On Shift)";
+            badgeClass = "badge-present";
+          }
+        } else if (hasOut) {
+          statusText = "Shift Ended";
+          badgeClass = "badge-shift-out";
+        } else if (emp.todayAttendance?.status === "ON_LEAVE") {
+          statusText = "Casual Leave (CL)";
+          badgeClass = "badge-leave";
+          leaveDaysCount++;
+        } else {
+          statusText = "Shift Out";
+          badgeClass = "badge-absent";
+        }
+        durationText = isCheckedIn ? "Active Session" : hasOut ? "08h 00m" : "--";
+        notes = "Today's Live Punch (Biometric/GPS)";
+      } else if (existingRecord) {
+        const recIn = existingRecord.checkInTime || existingRecord.checkIn || existingRecord.checkin;
+        const recOut = existingRecord.checkOutTime || existingRecord.checkOut || existingRecord.checkout;
+        if (recIn && recIn !== "-" && recIn !== "--:--") {
+          inTime = formatTime(recIn);
+          presentDaysCount++;
+        }
+        if (recOut && recOut !== "-" && recOut !== "--:--") {
+          outTime = formatTime(recOut);
+        }
+
+        const st = existingRecord.status?.toUpperCase() || "PRESENT";
+        if (st === "PRESENT") {
+          statusText = "Present";
+          badgeClass = "badge-present";
+        } else if (st === "LATE") {
+          statusText = "Late Arrival";
+          badgeClass = "badge-late";
+          lateDaysCount++;
+        } else if (st === "LEAVE" || st === "ON_LEAVE" || st === "CASUAL_LEAVE") {
+          statusText = "Casual Leave (CL)";
+          badgeClass = "badge-leave";
+          leaveDaysCount++;
+        } else if (st === "MEDICAL_LEAVE") {
+          statusText = "Medical Leave (ML)";
+          badgeClass = "badge-leave";
+          leaveDaysCount++;
+        } else {
+          statusText = existingRecord.status || "Present";
+          badgeClass = "badge-present";
+        }
+        durationText = existingRecord.workingHours || existingRecord.duration || "08h 30m";
+        notes = existingRecord.notes || existingRecord.terminal || `📍 ${emp.branch || "Campus"}`;
+      } else if (isSunday) {
+        statusText = "Sunday (Weekly Off)";
+        badgeClass = "badge-off";
+        notes = "Campus Weekly Holiday";
+        weeklyOffCount++;
+      } else if (isPast) {
+        statusText = "Absent / LOP";
+        badgeClass = "badge-absent";
+        notes = "No punch logged";
+      } else {
+        statusText = "Scheduled Shift";
+        badgeClass = "badge-scheduled";
+        notes = "Shift: 09:40 AM – 07:00 PM";
+      }
+
+      const inBadgeHtml =
+        inTime !== "--:--"
+          ? `<span class="time-in-badge">${inTime}</span>`
+          : `<span class="text-muted">--:--</span>`;
+
+      const outBadgeHtml =
+        outTime !== "--:--"
+          ? `<span class="time-out-badge">${outTime}</span>`
+          : `<span class="text-muted">--:--</span>`;
+
+      const rowClass = isSunday ? "sunday-row" : isToday ? "today-row" : "";
+
+      dayRowsHtml.push(`
+        <tr class="${rowClass}">
+          <td class="text-center font-mono font-bold">${String(dayNum).padStart(2, "0")}</td>
+          <td>
+            <strong>${formattedDate}</strong>
+            <span class="day-tag ${isSunday ? "sunday-tag" : ""}">${dayOfWeek}</span>
+          </td>
+          <td class="text-center font-mono text-muted text-xs">09:40 AM – 07:00 PM</td>
+          <td class="text-center">${inBadgeHtml}</td>
+          <td class="text-center">${outBadgeHtml}</td>
+          <td class="text-center font-mono font-bold">${durationText}</td>
+          <td class="text-center"><span class="badge ${badgeClass}">${statusText}</span></td>
+          <td class="text-slate-600 text-xs">${notes}</td>
+        </tr>
+      `);
+    }
+
+    lateCountTotal = emp.monthlyStats?.lateCount ?? lateDaysCount;
+    permissionUsed = emp.monthlyStats?.permissionHoursUsed ?? 0;
+    clUsed = emp.monthlyStats?.casualLeavesUsed ?? leaveDaysCount;
+    lopDays = emp.monthlyStats?.lopDays ?? (lateCountTotal >= 4 ? 0.5 : 0);
+
+    lateCountTotalText = `${lateCountTotal} / 3`;
+    clUsedText = `${clUsed} / 1 CL`;
+    permissionUsedText = `${permissionUsed}h / 2h`;
+    lopText = `${lopDays} Day(s)`;
   }
-
-  const lateCountTotal = emp.monthlyStats?.lateCount ?? lateDaysCount;
-  const permissionUsed = emp.monthlyStats?.permissionHoursUsed ?? 0;
-  const clUsed = emp.monthlyStats?.casualLeavesUsed ?? leaveDaysCount;
-  const lopDays = emp.monthlyStats?.lopDays ?? (lateCountTotal >= 4 ? 0.5 : 0);
 
   const printHtml = `
 <!DOCTYPE html>
@@ -1039,19 +1121,19 @@ export function generateEmployeeIndividualPdf(
       </div>
       <div class="stat-card amber">
         <div class="stat-label">Late Arrivals</div>
-        <div class="stat-val amber">${lateCountTotal} / 3</div>
+        <div class="stat-val amber">${lateCountTotalText || `${lateCountTotal} / 3`}</div>
       </div>
       <div class="stat-card blue">
         <div class="stat-label">Casual Leaves Taken</div>
-        <div class="stat-val blue">${clUsed} / 1 CL</div>
+        <div class="stat-val blue">${clUsedText || `${clUsed} / 1 CL`}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Permission Used</div>
-        <div class="stat-val">${permissionUsed}h / 2h</div>
+        <div class="stat-val">${permissionUsedText || `${permissionUsed}h / 2h`}</div>
       </div>
       <div class="stat-card red">
         <div class="stat-label">Loss of Pay (LOP)</div>
-        <div class="stat-val red">${lopDays} Day(s)</div>
+        <div class="stat-val red">${lopText || `${lopDays} Day(s)`}</div>
       </div>
     </div>
 
