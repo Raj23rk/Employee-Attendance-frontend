@@ -11,6 +11,7 @@ export interface CreateTaskPayload {
 
 export interface UpdateTaskStatusPayload {
   status: "BACKLOG" | "TODO" | "IN_PROGRESS" | "REVIEW" | "COMPLETED" | string;
+  note?: string;
 }
 
 export const tasksService = {
