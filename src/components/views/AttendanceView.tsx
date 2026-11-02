@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/Badge";
 import { attendanceService } from "@/services/attendance.service";
 import { CheckInOutWidget } from "@/components/ui/CheckInOutWidget";
 import { useToast } from "@/context/ToastContext";
-import { formatTime } from "@/lib/helpers";
+import { formatTime, formatTimeTo12Hour, calculateGraceTime } from "@/lib/helpers";
 import { generateBranchAttendancePdf, generateEmployeeIndividualPdf } from "@/lib/pdf-reports";
 
 
@@ -283,7 +283,9 @@ function AttendanceContent() {
           <p className="text-xs sm:text-sm text-[#5B6180]">
             {isMDorGM
               ? "Comprehensive Real-time Biometric Records, Muster Roll & Compliance Tracking"
-              : "Standard Shift: 09:40 AM – 07:00 PM • Grace: 09:45 AM • 3 Late Check-ins Allowed • 2h Monthly Permission"}
+              : user?.shiftStartTime
+              ? `Your Scheduled Shift: ${formatTimeTo12Hour(user.shiftStartTime)} – ${formatTimeTo12Hour(user.shiftEndTime || "19:00")} • Grace: ${calculateGraceTime(user.shiftStartTime, user.gracePeriodMinutes ?? 5)} • 3 Grace Check-ins Allowed`
+              : "Standard Shift: 09:40 AM – 07:00 PM • Grace: 09:45 AM • 3 Grace Check-ins Allowed • 2h Monthly Permission"}
           </p>
         </div>
 
@@ -710,7 +712,7 @@ function AttendanceContent() {
                       </span>
                     </td>
                     <td className="py-3 px-3 text-slate-500">
-                      {item.checkInTime ? formatTime(item.checkInTime) : "09:40 AM"} - {item.checkOutTime ? formatTime(item.checkOutTime) : "07:00 PM"}
+                      {item.checkInTime ? formatTime(item.checkInTime) : (item.shiftStartTime ? formatTimeTo12Hour(item.shiftStartTime) : "09:40 AM")} - {item.checkOutTime ? formatTime(item.checkOutTime) : (item.shiftEndTime ? formatTimeTo12Hour(item.shiftEndTime) : "07:00 PM")}
                     </td>
                     <td className="py-3 px-3 text-right">
                       <button

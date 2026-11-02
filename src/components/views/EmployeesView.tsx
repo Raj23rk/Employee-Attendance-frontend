@@ -54,7 +54,7 @@ import {
   type BankDetails,
   formatRoleLabel,
 } from "@/lib/constants";
-import { formatTime } from "@/lib/helpers";
+import { formatTime, formatTimeTo12Hour, calculateGraceTime } from "@/lib/helpers";
 import { generateBranchAttendancePdf, generateEmployeeIndividualPdf } from "@/lib/pdf-reports";
 
 
@@ -391,9 +391,12 @@ function EmployeesContent() {
     fetchLeaves();
   }, [fetchBranches, fetchEmployees, fetchLeaves]);
 
-  // Filter Employees
+  // Filter Employees (Exclude removed/deactivated staff like NAVEEN M unless explicitly searched)
   const filteredEmployees = employees.filter((emp) => {
     const s = searchTerm.trim().toLowerCase();
+    const isRemoved = emp.isActive === false || emp.name?.toUpperCase().includes("NAVEEN M") || emp.employeeId === "WG-EMP-017";
+    if (isRemoved && s === "") return false;
+
     const matchesSearch =
       s === "" ||
       emp.name?.toLowerCase().includes(s) ||
@@ -420,11 +423,12 @@ function EmployeesContent() {
     return matchesSearch && matchesBranch && matchesDept && matchesStatus;
   });
 
-  // Calculate Aggregates
-  const totalEmployeesCount = employees.length;
-  const presentTodayCount = employees.filter((e) => e.todayAttendance?.isCheckedIn).length;
-  const onLeaveCount = employees.filter((e) => e.todayAttendance?.status === "ON_LEAVE").length;
-  const lateCheckinsCount = employees.filter((e) => (e.monthlyStats?.lateCount || 0) >= 3).length;
+  // Calculate Aggregates for Active Staff
+  const activeEmployees = employees.filter((e) => e.isActive !== false && !e.name?.toUpperCase().includes("NAVEEN M") && e.employeeId !== "WG-EMP-017");
+  const totalEmployeesCount = activeEmployees.length;
+  const presentTodayCount = activeEmployees.filter((e) => e.todayAttendance?.isCheckedIn).length;
+  const onLeaveCount = activeEmployees.filter((e) => e.todayAttendance?.status === "ON_LEAVE").length;
+  const lateCheckinsCount = activeEmployees.filter((e) => (e.monthlyStats?.lateCount || 0) >= 3).length;
 
   // Review Leave (Approve / Reject)
   const handleReviewLeaveAction = async (lv: any, action: "APPROVE" | "REJECT") => {
@@ -953,7 +957,7 @@ function EmployeesContent() {
                 <h3 className="text-sm font-bold text-white">Company Branches &amp; Campus Distribution</h3>
               </div>
               <span className="text-xs text-slate-300">
-                Rule: Shift 09:40 AM – 07:00 PM • Grace: 09:45 AM • Max 3 Lates • 2h Monthly Permission
+                Rule: Individual Shifts • 5m Grace Window (3 Allowed/Mo) • 4th Late = Half-Day LOP • 2h Monthly Permission
               </span>
             </div>
 
@@ -1239,6 +1243,11 @@ function EmployeesContent() {
                             <p className="text-[11px] text-slate-500">
                               In: <strong className="text-slate-700">{inTime}</strong> • Out: <strong className="text-slate-700">{outTime}</strong>
                             </p>
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                              <span>Shift: <strong className="text-slate-600 font-semibold">{formatTimeTo12Hour(member.shiftStartTime || "09:40")} – {formatTimeTo12Hour(member.shiftEndTime || "19:00")}</strong></span>
+                              <span>•</span>
+                              <span className="text-amber-700 font-medium">Grace: {calculateGraceTime(member.shiftStartTime || "09:40", member.gracePeriodMinutes ?? 5)}</span>
+                            </div>
                           </div>
                         </td>
 
@@ -1758,6 +1767,23 @@ function EmployeesContent() {
                     <p className="font-semibold text-[#EA6118] mt-0.5">{formatRoleLabel(selectedEmployee.role)}</p>
                   </div>
                 </div>
+
+                {/* Assigned Shift Schedule */}
+                <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800">
+                      Assigned Shift Timing
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      Grace: {calculateGraceTime(selectedEmployee.shiftStartTime || "09:40", selectedEmployee.gracePeriodMinutes ?? 5)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-semibold text-slate-800">
+                    <span>Shift: <strong>{formatTimeTo12Hour(selectedEmployee.shiftStartTime || "09:40")}</strong> to <strong>{formatTimeTo12Hour(selectedEmployee.shiftEndTime || "19:00")}</strong></span>
+                    <span>•</span>
+                    <span className="text-[11px] text-slate-600 font-normal">Grace: 5 mins (3 allowed per month)</span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1834,7 +1860,7 @@ function EmployeesContent() {
                   }`}
                 >
                   <div className="flex items-center justify-between font-bold">
-                    <span>Monthly Late Check-ins (Shift: 09:40 AM / Grace: 09:45 AM)</span>
+                    <span>Monthly Late Check-ins (Shift: {selectedEmployee.shiftStartTime ? formatTimeTo12Hour(selectedEmployee.shiftStartTime) : "09:40 AM"} – {selectedEmployee.shiftEndTime ? formatTimeTo12Hour(selectedEmployee.shiftEndTime) : "07:00 PM"})</span>
                     <span className="rounded bg-white px-2 py-0.5 text-xs font-bold shadow-xs">
                       {selectedEmployee.monthlyStats?.lateCount ?? 0} / 3 Allowed
                     </span>
@@ -1845,7 +1871,7 @@ function EmployeesContent() {
                         ⚠️ 4th Late check-in triggered! Half-Day salary deduction applied in payroll muster.
                       </strong>
                     ) : (
-                      "3 late arrivals allowed per month up to 09:45 AM. 4th late check-in deducts Half-Day salary."
+                      `3 grace arrivals allowed per month up to ${calculateGraceTime(selectedEmployee.shiftStartTime || "09:40", selectedEmployee.gracePeriodMinutes ?? 5)}. 4th late check-in deducts Half-Day salary.`
                     )}
                   </p>
                 </div>

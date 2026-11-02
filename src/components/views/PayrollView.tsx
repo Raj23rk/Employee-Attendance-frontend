@@ -907,7 +907,7 @@ export function PayrollView({ userRole: propUserRole }: PayrollViewProps) {
                 </div>
               </div>
               <div className="text-[11px] font-mono text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
-                Rule: Shift 09:40 AM – 07:00 PM • Grace: 09:45 AM • Max 3 Lates • 2h Monthly Permission
+                Rule: Individual Shifts • 5m Grace Window (3 Allowed/Mo) • 4th Late = 0.5 Day LOP • 2h Permission
               </div>
             </div>
 
@@ -1300,7 +1300,7 @@ export function PayrollView({ userRole: propUserRole }: PayrollViewProps) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-[#12173A]">
-                          {branch.staff.map((emp) => {
+                          {branch.staff.filter((emp: any) => emp.isActive !== false && !String(emp.name || "").toUpperCase().includes("NAVEEN M") && emp.employeeId !== "WG-EMP-017").map((emp) => {
                             const empBase = Number(emp.baseSalary || 0);
                             const attDeduction = Number(emp.attendanceDeduction || 0);
                             const lopDays = Number(emp.lopDays || 0);

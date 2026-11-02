@@ -107,6 +107,15 @@ export function CheckInOutWidget({
 
   // Monthly Policy Metrics
   const [monthlyLateCount, setMonthlyLateCount] = useState<number>(0);
+  const [shiftDetails, setShiftDetails] = useState<{
+    startTime: string;
+    graceTime: string;
+    endTime: string;
+  }>({
+    startTime: "09:40 AM",
+    graceTime: "09:45 AM",
+    endTime: "07:00 PM",
+  });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const checkInTimestampRef = useRef<number | null>(null);
@@ -345,6 +354,17 @@ export function CheckInOutWidget({
           setElapsedSeconds(0);
         }
 
+        if (data.shiftDetails) {
+          setShiftDetails({
+            startTime: data.shiftDetails.startTime || "09:40 AM",
+            graceTime: data.shiftDetails.graceTime || "09:45 AM",
+            endTime: data.shiftDetails.endTime || "07:00 PM",
+          });
+        }
+        if (typeof data.lateCountThisMonth === "number") {
+          setMonthlyLateCount(data.lateCountThisMonth);
+        }
+
         if (onStatusChange) onStatusChange(data);
       }
     } catch {
@@ -395,26 +415,6 @@ export function CheckInOutWidget({
     const nowMs = now.getTime();
     const todayStr = nowIso.split("T")[0];
 
-    // Check 9:40 AM standard & 9:45 AM grace time
-    const currentHour = now.getHours();
-    const currentMin = now.getMinutes();
-    const totalCurrentMinutes = currentHour * 60 + currentMin;
-    const graceThresholdMinutes = 9 * 60 + 45; // 09:45 AM
-
-    let isLatePunch = false;
-    let lateNotice = "";
-
-    if (totalCurrentMinutes > graceThresholdMinutes) {
-      isLatePunch = true;
-      const newLateCount = monthlyLateCount + 1;
-      setMonthlyLateCount(newLateCount);
-      if (newLateCount > 3) {
-        lateNotice = ` (4th Late Check-in: Half-Day Salary Deduction Applied)`;
-      } else {
-        lateNotice = ` (Late Arrival ${newLateCount}/3 Allowed)`;
-      }
-    }
-
     try {
       const targetBranchId = activeBranch?.id || "assigned-branch";
       const targetBranchName = activeBranch?.name || userAssignedBranchName || "Main Campus";
@@ -426,11 +426,21 @@ export function CheckInOutWidget({
         branchId: targetBranchId,
         branchName: targetBranchName,
         locationAddress: userLocation?.address || activeBranch?.address || targetBranchName,
-        notes: `Checked in at ${targetBranchName} (${workMode.toUpperCase()})${lateNotice}`,
       };
 
       const res = await attendanceService.checkIn(payload);
       const resData = res?.data || res;
+
+      if (resData?.shiftDetails) {
+        setShiftDetails({
+          startTime: resData.shiftDetails.startTime || shiftDetails.startTime,
+          graceTime: resData.shiftDetails.graceTime || shiftDetails.graceTime,
+          endTime: resData.shiftDetails.endTime || shiftDetails.endTime,
+        });
+      }
+      if (typeof resData?.lateCountThisMonth === "number") {
+        setMonthlyLateCount(resData.lateCountThisMonth);
+      }
 
       const rawIn =
         resData?.rawCheckInTime ||
@@ -458,7 +468,8 @@ export function CheckInOutWidget({
         localStorage.removeItem("wg_checkout_time");
       }
 
-      setStatusMessage(`Checked in successfully at ${targetBranchName}!${lateNotice}`);
+      const msg = res?.message || resData?.message || `Checked in successfully at ${targetBranchName}!`;
+      setStatusMessage(msg);
       setTimeout(() => setStatusMessage(null), 6000);
       if (onStatusChange) onStatusChange({ isCheckedIn: true, checkInTime: rawIn, rawCheckInTime: rawIn, startedAt: startMs });
     } catch {
@@ -476,7 +487,7 @@ export function CheckInOutWidget({
         localStorage.removeItem(`wg_checkout_time_${userKey}`);
         localStorage.removeItem("wg_checkout_time");
       }
-      setStatusMessage(`Checked in (Saved locally)${lateNotice}`);
+      setStatusMessage("Checked in successfully");
       setTimeout(() => setStatusMessage(null), 6000);
     } finally {
       setIsProcessing(false);
@@ -593,7 +604,7 @@ export function CheckInOutWidget({
             onClick={handleCheckOut}
             disabled={isProcessing}
             className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#DC2626] to-[#B91C1C] px-4 py-2 text-xs font-bold text-white shadow-lg shadow-red-900/30 hover:from-[#B91C1C] hover:to-[#991B1B] active:scale-95 transition-all disabled:opacity-60"
-            title="Standard Check-out: 07:00 PM"
+            title={`Check-out Target: ${shiftDetails.endTime}`}
           >
             {isProcessing ? (
               <RotateCw className="h-4 w-4 animate-spin" />
@@ -608,7 +619,7 @@ export function CheckInOutWidget({
               onClick={handleCheckIn}
               disabled={isProcessing}
               className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#EA6118] to-[#D9520A] px-4 py-2 text-xs font-bold text-white shadow-lg shadow-orange-600/30 hover:opacity-95 active:scale-95 transition-all disabled:opacity-60 group"
-              title="Standard Check-in: 09:40 AM (Grace: 09:45 AM)"
+              title={`Scheduled Check-in: ${shiftDetails.startTime} (Grace: ${shiftDetails.graceTime})`}
             >
               {isProcessing ? (
                 <RotateCw className="h-4 w-4 animate-spin" />
@@ -646,7 +657,7 @@ export function CheckInOutWidget({
                 Smart Biometric &amp; GPS Attendance
               </h3>
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
-                Shift: 09:40 AM – 07:00 PM
+                Shift: {shiftDetails.startTime} – {shiftDetails.endTime}
               </span>
             </div>
             <p className="text-xs text-[#64748B] flex items-center gap-1.5 mt-0.5">
@@ -692,15 +703,15 @@ export function CheckInOutWidget({
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs text-[#64748B]">
             <div>
-              Standard In: <strong className="text-slate-800">09:40 AM</strong>
+              Shift Start: <strong className="text-slate-800">{shiftDetails.startTime}</strong>
             </div>
             <span>•</span>
             <div>
-              Grace In: <strong className="text-amber-700">09:45 AM</strong>
+              Grace Window: <strong className="text-amber-700">{shiftDetails.graceTime}</strong>
             </div>
             <span>•</span>
             <div>
-              Check-Out: <strong className="text-slate-800">07:00 PM</strong>
+              Shift End: <strong className="text-slate-800">{shiftDetails.endTime}</strong>
             </div>
           </div>
         </div>
@@ -726,7 +737,7 @@ export function CheckInOutWidget({
               ) : (
                 <Square className="h-4 w-4 fill-current" />
               )}
-              <span>Check Out (07:00 PM)</span>
+              <span>Check Out ({shiftDetails.endTime})</span>
             </button>
           ) : (
             <button
@@ -739,7 +750,7 @@ export function CheckInOutWidget({
               ) : (
                 <Play className="h-4 w-4 fill-current" />
               )}
-              <span>{checkOutTime ? "Check In Again" : "Check In Now (09:40 AM)"}</span>
+              <span>{checkOutTime ? "Check In Again" : `Check In Now (${shiftDetails.startTime})`}</span>
             </button>
           )}
         </div>
@@ -776,7 +787,7 @@ export function CheckInOutWidget({
             {monthlyLateCount >= 4 ? (
               <strong className="text-red-700">⚠️ 4th Late: Half-Day salary deduction applied!</strong>
             ) : (
-              "Allowed up to 9:45 AM (3 times/month). 4th late triggers Half-Day deduction."
+              `Grace window: up to ${shiftDetails.graceTime} (3 times/month). 4th late triggers Half-Day deduction.`
             )}
           </p>
         </div>

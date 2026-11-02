@@ -116,4 +116,46 @@ export function formatTime(date: Date | string | number | null | undefined): str
   }
 }
 
+/** Convert "HH:mm" 24h format (e.g. "10:00", "17:00", "09:40") to 12h "hh:mm A" */
+export function formatTimeTo12Hour(timeStr?: string): string {
+  if (!timeStr) return "";
+  const str = String(timeStr).trim();
+  if (str.includes("AM") || str.includes("PM")) return str;
+  const parts = str.split(":");
+  if (parts.length >= 2) {
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) || 0;
+    if (!isNaN(h)) {
+      const period = h >= 12 ? "PM" : "AM";
+      const hour12 = h % 12 === 0 ? 12 : h % 12;
+      return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+    }
+  }
+  return formatTime(timeStr);
+}
+
+/** Calculate grace time string (e.g. "09:40" + 5m -> "09:45 AM", "10:00" + 5m -> "10:05 AM") */
+export function calculateGraceTime(startTimeStr?: string, graceMinutes: number = 5): string {
+  if (!startTimeStr) return "09:45 AM";
+  const str = String(startTimeStr).trim();
+  let h = 9;
+  let m = 40;
+  if (str.includes("AM") || str.includes("PM")) {
+    const [time, period] = str.split(" ");
+    const [hS, mS] = time.split(":").map(Number);
+    h = period === "PM" && hS !== 12 ? hS + 12 : period === "AM" && hS === 12 ? 0 : hS;
+    m = mS || 0;
+  } else {
+    const parts = str.split(":").map(Number);
+    h = parts[0] || 0;
+    m = parts[1] || 0;
+  }
+  const totalMins = h * 60 + m + graceMinutes;
+  const graceH = Math.floor(totalMins / 60) % 24;
+  const graceM = totalMins % 60;
+  const period = graceH >= 12 ? "PM" : "AM";
+  const hour12 = graceH % 12 === 0 ? 12 : graceH % 12;
+  return `${String(hour12).padStart(2, "0")}:${String(graceM).padStart(2, "0")} ${period}`;
+}
+
 

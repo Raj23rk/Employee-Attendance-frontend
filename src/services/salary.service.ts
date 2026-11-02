@@ -19,6 +19,9 @@ export interface StaffSalaryRecord {
   monthlyHistory?: Record<string, number | string>; // e.g. { "JAN": "NIL", "MAY": 19000, "SEP": 19000 }
   increments?: StaffSalaryIncrement[];
   isActive: boolean;
+  shiftStartTime?: string;
+  shiftEndTime?: string;
+  gracePeriodMinutes?: number;
 }
 
 export interface StaffSalaryIncrement {
@@ -292,6 +295,9 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     panNumber: "EFGPB1234U",
     monthlyHistory: { SEP: 6999.95 },
     isActive: true,
+    shiftStartTime: "10:00",
+    shiftEndTime: "20:00",
+    gracePeriodMinutes: 5,
   },
   {
     id: "SV-12",
@@ -347,6 +353,9 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     panNumber: "NOPPB4567X",
     monthlyHistory: { MAY: 5000, JUNE: 5000, JULY: 5000, AUGUST: 5000, SEP: 5000 },
     isActive: true,
+    shiftStartTime: "17:00",
+    shiftEndTime: "21:00",
+    gracePeriodMinutes: 5,
   },
   {
     id: "SV-15",
@@ -365,6 +374,9 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     panNumber: "QRSTB5678Y",
     monthlyHistory: { SEP: 799.91 },
     isActive: true,
+    shiftStartTime: "18:30",
+    shiftEndTime: "21:00",
+    gracePeriodMinutes: 5,
   },
   {
     id: "SV-16",
@@ -477,6 +489,24 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     monthlyHistory: { JUNE: 143043, JULY: 143043, AUGUST: 143043, SEP: 143043 },
     isActive: true,
   },
+  {
+    id: "SV-22",
+    employeeId: "WG-EMP-024",
+    name: "Ragul B",
+    mobile: "9080706050",
+    role: "staff",
+    designation: "Staff Associate",
+    branch: "Sivakasi",
+    doj: "2026-10-05",
+    baseSalary: 12000,
+    currentSalary: 12000,
+    department: "Operations",
+    monthlyHistory: { OCT: 12000 },
+    isActive: true,
+    shiftStartTime: "09:40",
+    shiftEndTime: "19:30",
+    gracePeriodMinutes: 5,
+  },
 
   // ── Srivilliputhur Branch Staff (6) ──
   {
@@ -515,6 +545,9 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     uanNumber: "100988776680",
     monthlyHistory: { JULY: 8322.55, AUGUST: 12000, SEP: 11600 },
     isActive: true,
+    shiftStartTime: "09:40",
+    shiftEndTime: "17:40",
+    gracePeriodMinutes: 5,
   },
   {
     id: "SR-03",
@@ -533,6 +566,9 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     panNumber: "WXYZM4567H",
     monthlyHistory: { SEP: 4950.01 },
     isActive: true,
+    shiftStartTime: "18:00",
+    shiftEndTime: "21:00",
+    gracePeriodMinutes: 5,
   },
   {
     id: "SR-04",
@@ -551,6 +587,9 @@ export const INITIAL_STAFF_SALARY_DATA: StaffSalaryRecord[] = [
     panNumber: "ABCDM5678I",
     monthlyHistory: { JULY: 5483.88, AUGUST: 8870.97, SEP: 8666.68 },
     isActive: true,
+    shiftStartTime: "10:00",
+    shiftEndTime: "13:00",
+    gracePeriodMinutes: 5,
   },
   {
     id: "SR-05",

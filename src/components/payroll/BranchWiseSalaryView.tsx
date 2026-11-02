@@ -243,7 +243,7 @@ export const BranchWiseSalaryView: React.FC<BranchWiseSalaryViewProps> = () => {
                 </tr>
               </thead>
               <tbody>
-                {branch.staff.map((emp: any) => {
+                {branch.staff.filter((emp: any) => emp.isActive !== false && !String(emp.name || "").toUpperCase().includes("NAVEEN M") && emp.employeeId !== "WG-EMP-017").map((emp: any) => {
                   const empBase = Number(emp.baseSalary || 0);
                   const { attDeduction, lopDays, finalSalary } = calculateStaffAttendanceDeduction(emp);
                   return (

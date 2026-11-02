@@ -57,6 +57,9 @@ export interface User {
   dateOfJoining?: string;
   branch?: string;
   isActive?: boolean;
+  shiftStartTime?: string; // e.g. "09:40", "10:00", "17:00", "18:30"
+  shiftEndTime?: string; // e.g. "19:00", "20:00", "21:00", "17:40", "13:00"
+  gracePeriodMinutes?: number; // default 5 minutes
   bankDetails?: BankDetails;
   todayAttendance?: {
     isCheckedIn: boolean;
@@ -98,8 +101,9 @@ export const ATTENDANCE_POLICY_CONFIG = {
   standardCheckIn: "09:40 AM",
   graceCheckIn: "09:45 AM",
   standardCheckOut: "07:00 PM",
+  gracePeriodMinutes: 5,
   maxLateAllowedPerMonth: 3,
-  lateDeductionRule: "3 times late check-in allowed (up to 9:45 AM). 4th late check-in will deduct Half-Day salary.",
+  lateDeductionRule: "Individual shift schedule with 5-minute grace window. Grace arrival allowed 3 times per month. 4th late check-in will deduct Half-Day salary.",
   monthlyPermissionHoursMax: 2,
   permissionDeductionRule: "1 month employee gets 2 hours total permission. Permission exceeding 2 hours triggers Half-Day salary deduction.",
   casualLeaveMonthlyAllowance: 1,

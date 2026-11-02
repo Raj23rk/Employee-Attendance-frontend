@@ -1,4 +1,4 @@
-import { formatTime, formatDate } from "@/lib/helpers";
+import { formatTime, formatDate, formatTimeTo12Hour, calculateGraceTime } from "@/lib/helpers";
 import { formatRoleLabel, type User } from "@/lib/constants";
 
 /**
@@ -499,8 +499,15 @@ export function generateEmployeeIndividualPdf(
         branch: empOrReport.employee.branch || "Main Campus",
         dateOfJoining: empOrReport.employee.dateOfJoining || "-",
         email: empOrReport.employee.email || "",
+        shiftStartTime: empOrReport.employee.shiftStartTime,
+        shiftEndTime: empOrReport.employee.shiftEndTime,
+        gracePeriodMinutes: empOrReport.employee.gracePeriodMinutes,
       }
     : (empOrReport as User);
+
+  const shiftStart12 = emp.shiftStartTime ? formatTimeTo12Hour(emp.shiftStartTime) : (empOrReport?.shiftPolicy?.workStartTime || "09:40 AM");
+  const shiftEnd12 = emp.shiftEndTime ? formatTimeTo12Hour(emp.shiftEndTime) : (empOrReport?.shiftPolicy?.workEndTime || "07:00 PM");
+  const grace12 = emp.shiftStartTime ? calculateGraceTime(emp.shiftStartTime, emp.gracePeriodMinutes ?? 5) : (empOrReport?.shiftPolicy?.graceTime || "09:45 AM");
 
   const now = new Date();
   const targetYear = isApiReport ? empOrReport.period.year : (year || now.getFullYear());
@@ -1076,7 +1083,7 @@ export function generateEmployeeIndividualPdf(
       </div>
       <div class="meta-box">
         <div><strong>Statement Period:</strong> ${monthYearLabel}</div>
-        <div><strong>Shift Timings:</strong> 09:40 AM – 07:00 PM (Grace: 09:45 AM)</div>
+        <div><strong>Shift Timings:</strong> ${shiftStart12} – ${shiftEnd12} (Grace: ${grace12})</div>
         <div><strong>Print Date:</strong> ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
       </div>
     </div>
@@ -1160,7 +1167,7 @@ export function generateEmployeeIndividualPdf(
       <div>
         <div><strong>WeGrow HR &amp; Biometric Compliance Directorate</strong></div>
         <div>Employee Attendance Statement • Computer generated with cryptographic record audit</div>
-        <div style="color: #94a3b8; margin-top: 2px;">Policy rules: Shift 09:40 AM – 07:00 PM (Grace: 09:45 AM). Max 3 late arrivals / 2.0h permission per month.</div>
+        <div style="color: #94a3b8; margin-top: 2px;">Policy rules: Shift ${shiftStart12} – ${shiftEnd12} (Grace: ${grace12}). 3 grace check-ins allowed per month. 4th late check-in applies Half-Day deduction.</div>
       </div>
 
       <div class="sign-box">
